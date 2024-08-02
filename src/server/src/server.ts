@@ -1,7 +1,7 @@
-import { webkit } from 'playwright';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
+import path from 'path';
+import {Page, webkit } from 'playwright';
+import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import sharp from 'sharp';
@@ -23,11 +23,18 @@ interface FrameGroup {
 const server = http.createServer();
 const wss = new WebSocketServer({ server });
 let clients: WebSocket[] = [];
-let page: any;
+let page: Page;
 
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Clear browser cache directory (example path, adjust as needed)
+const cacheDir = path.resolve(__dirname, 'path_to_browser_cache');
+if (fs.existsSync(cacheDir)) {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+    console.log('Browser cache cleared');
+}
 
 wss.on('connection', (ws: WebSocket) => {
     clients.push(ws);
@@ -53,10 +60,9 @@ wss.on('connection', (ws: WebSocket) => {
             ws.send('screenshot_done');
 
             // Calculate the delay based on the inter-frame period
-            const delay = frameGroup.startTime - Date.now();
-            console.log(delay)
+            const delay = Math.max(0, frameGroup.startTime - Date.now());
 
-
+            console.log(`Scheduling next frame group in ${delay}ms`);
 
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
@@ -74,24 +80,34 @@ wss.on('connection', (ws: WebSocket) => {
 
 (async () => {
     const browser = await webkit.launch();
-    page = await browser.newPage();
+    const context = await browser.newContext({
+        extraHTTPHeaders: {
+            'Cache-Control': 'no-store', // Disable caching
+        },
+
+    });
+    page = await context.newPage();
+
+
+
 
     const filePath = path.join(__dirname, '../../../src/client/dist/index.html');
-    await page.goto(`file://${filePath}`);
+    await page.goto(`file://${filePath}`, { waitUntil: 'networkidle' });
 
     console.log('Browser and page loaded');
+
     page.on('console', async (msg: { args: () => any; }) => {
         const msgArgs = msg.args();
         const logValues = await Promise.all(msgArgs.map(async (arg: { jsonValue: () => any; }) => await arg.jsonValue()));
-        console.log("::",...logValues);
+        console.log("::", ...logValues);
     });
-
 
     process.on('exit', async () => {
         await browser.close();
         console.log('Browser closed');
     });
 })();
+
 
 async function captureAndSendScreenshot(frameGroup: FrameGroup) {
     try {
@@ -106,12 +122,11 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
         const boundingBox = await elementHandle.boundingBox();
 
         const screenshotBuffer = await page.screenshot({
-            encoding: 'base64',
             clip: boundingBox!,
             timeout: 100,
         });
 
-        const imageBuffer = Buffer.from(screenshotBuffer, 'base64');
+        const imageBuffer = Buffer.from(screenshotBuffer);
 
         const frameHeight = Math.floor(totalHeight / frameCount);
         const frames: Frame[] = [];
@@ -120,7 +135,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
             const yPosition = i * frameHeight;
 
             const croppedBuffer = await sharp(imageBuffer)
-                .extract({ width: 96, height: frameHeight, left: 0, top: yPosition })
+                .extract({ width: boundingBox!.width, height: frameHeight, left: 0, top: yPosition })
                 .toBuffer();
 
             frames.push({

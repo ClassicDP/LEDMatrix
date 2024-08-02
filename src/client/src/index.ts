@@ -34,7 +34,7 @@ class AnimationFrameGenerator {
         this.speed = speed / 1000;
         this.generatedGroups = 0;
         this.scrollingText = new ScrollingText("", width, this.speed);
-        this.matrix = new LEDMatrix(containerId, width, height * frameCount);
+        this.matrix = new LEDMatrix(containerId, width, height * frameCount, frameCount);
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
@@ -128,4 +128,4 @@ class AnimationFrameGenerator {
 }
 
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 30, 10, 1, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 36, 10, 5, Date.now(), 'ws://localhost:8081');

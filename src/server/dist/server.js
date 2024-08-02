@@ -7,8 +7,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { webkit } from 'playwright';
+import fs from 'fs';
 import path from 'path';
+import { webkit } from 'playwright';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -20,6 +21,12 @@ let page;
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// Clear browser cache directory (example path, adjust as needed)
+const cacheDir = path.resolve(__dirname, 'path_to_browser_cache');
+if (fs.existsSync(cacheDir)) {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+    console.log('Browser cache cleared');
+}
 wss.on('connection', (ws) => {
     clients.push(ws);
     console.log('Client connected');
@@ -38,8 +45,8 @@ wss.on('connection', (ws) => {
             yield captureAndSendScreenshot(frameGroup);
             ws.send('screenshot_done');
             // Calculate the delay based on the inter-frame period
-            const delay = frameGroup.startTime - Date.now();
-            console.log(delay);
+            const delay = Math.max(0, frameGroup.startTime - Date.now());
+            console.log(`Scheduling next frame group in ${delay}ms`);
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -55,9 +62,14 @@ wss.on('connection', (ws) => {
 });
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const browser = yield webkit.launch();
-    page = yield browser.newPage();
+    const context = yield browser.newContext({
+        extraHTTPHeaders: {
+            'Cache-Control': 'no-store', // Disable caching
+        },
+    });
+    page = yield context.newPage();
     const filePath = path.join(__dirname, '../../../src/client/dist/index.html');
-    yield page.goto(`file://${filePath}`);
+    yield page.goto(`file://${filePath}`, { waitUntil: 'networkidle' });
     console.log('Browser and page loaded');
     page.on('console', (msg) => __awaiter(void 0, void 0, void 0, function* () {
         const msgArgs = msg.args();
@@ -80,17 +92,16 @@ function captureAndSendScreenshot(frameGroup) {
             const elementHandle = yield page.waitForSelector('#animation-container', { state: 'visible' });
             const boundingBox = yield elementHandle.boundingBox();
             const screenshotBuffer = yield page.screenshot({
-                encoding: 'base64',
                 clip: boundingBox,
                 timeout: 100,
             });
-            const imageBuffer = Buffer.from(screenshotBuffer, 'base64');
+            const imageBuffer = Buffer.from(screenshotBuffer);
             const frameHeight = Math.floor(totalHeight / frameCount);
             const frames = [];
             for (let i = 0; i < frameCount; i++) {
                 const yPosition = i * frameHeight;
                 const croppedBuffer = yield sharp(imageBuffer)
-                    .extract({ width: 96, height: frameHeight, left: 0, top: yPosition })
+                    .extract({ width: boundingBox.width, height: frameHeight, left: 0, top: yPosition })
                     .toBuffer();
                 frames.push({
                     timeStamp: frameGroup.startTime + i * frameGroup.frameInterval,

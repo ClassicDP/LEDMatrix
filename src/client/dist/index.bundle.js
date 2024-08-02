@@ -13,10 +13,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   LEDMatrix: () => (/* binding */ LEDMatrix)
 /* harmony export */ });
 class LEDMatrix {
-    constructor(containerId, width, height) {
+    constructor(containerId, width, height, frameCount) {
         this.container = document.getElementById(containerId);
         this.width = width;
         this.height = height;
+        this.frameCount = frameCount;
         this.container.style.width = `${this.width}px`;
         this.container.style.height = `${this.height}px`;
         this.container.style.overflow = 'hidden';
@@ -27,9 +28,9 @@ class LEDMatrix {
         frame.className = 'frame';
         frame.style.position = 'absolute';
         frame.style.width = `${this.width}px`;
-        frame.style.height = `${this.height / 10}px`; // высота фрейма должна быть меньше общей высоты, если количество кадров больше 1
+        frame.style.height = `${this.height / this.frameCount}px`; // высота фрейма должна быть меньше общей высоты, если количество кадров больше 1
         frame.style.overflow = 'hidden';
-        frame.style.left = `${positionX}px`;
+        frame.style.left = `${Math.floor(positionX)}px`;
         frame.style.top = `${positionY}px`;
         const rainbowText = document.createElement('div');
         rainbowText.className = 'rainbow-text';
@@ -87,7 +88,7 @@ class ScrollingText {
     // Обновление позиции с учётом времени
     updatePosition(deltaTime) {
         this.position -= this.speed * deltaTime;
-        console.log("-----", this.speed, deltaTime, this.position);
+        console.log("+-----", this.speed, deltaTime, this.position);
         // Получаем реальную ширину текста из DOM-элемента
         const textElement = document.createElement('span');
         textElement.style.visibility = 'hidden'; // Скрываем элемент от отображения
@@ -189,13 +190,13 @@ class AnimationFrameGenerator {
         this.container = document.getElementById(containerId);
         this.width = width;
         this.height = height;
+        this.startTime = startTime;
         this.framesPerSecond = framesPerSecond;
         this.frameCount = frameCount;
         this.speed = speed / 1000;
-        this.currentTime = startTime;
         this.generatedGroups = 0;
-        this.scrollingText = new _scrollingText__WEBPACK_IMPORTED_MODULE_1__.ScrollingText("", width, speed);
-        this.matrix = new _ledMatrixRenderer__WEBPACK_IMPORTED_MODULE_0__.LEDMatrix(containerId, width, height * frameCount);
+        this.scrollingText = new _scrollingText__WEBPACK_IMPORTED_MODULE_1__.ScrollingText("", width, this.speed);
+        this.matrix = new _ledMatrixRenderer__WEBPACK_IMPORTED_MODULE_0__.LEDMatrix(containerId, width, height * frameCount, frameCount);
         this.ws = new WebSocket(wsUrl);
         this.ws.onopen = () => {
             console.log('WebSocket connected');
@@ -226,7 +227,7 @@ class AnimationFrameGenerator {
     generateTimeStrings() {
         const timeStrings = [];
         const frameInterval = 1000 / this.framesPerSecond;
-        let time = this.currentTime + this.generatedGroups * this.frameCount * frameInterval;
+        let time = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
         for (let i = 0; i < this.frameCount; i++) {
             const date = new Date(time + i * frameInterval);
             const timeString = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}.${String(date.getMilliseconds()).padStart(3, '0')}`;
@@ -239,11 +240,11 @@ class AnimationFrameGenerator {
         console.log(this.framesPerSecond);
         const textArray = this.generateTimeStrings();
         const frameInterval = 1000 / this.framesPerSecond;
-        const startTime = this.currentTime;
+        let groupStartTime = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
         const framePositions = [];
         for (let i = 0; i < this.frameCount; i++) {
-            const currentTime = startTime + i * frameInterval;
-            const deltaTime = currentTime - startTime;
+            const currentTime = groupStartTime + i * frameInterval;
+            const deltaTime = currentTime - groupStartTime;
             this.scrollingText.setText(textArray[i]);
             this.scrollingText.updatePosition(deltaTime);
             const progress = i / this.frameCount;
@@ -251,10 +252,9 @@ class AnimationFrameGenerator {
             this.matrix.renderFrame(gradientText, this.scrollingText.getPosition(), i * this.height);
             framePositions.push(this.scrollingText.getPosition());
         }
-        this.currentTime += frameInterval * this.frameCount;
         this.generatedGroups += 1;
         return {
-            startTime: startTime,
+            startTime: groupStartTime,
             frameInterval: frameInterval,
             frameCount: this.frameCount,
             speed: this.speed,
@@ -268,7 +268,7 @@ class AnimationFrameGenerator {
     }
 }
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 30, 10, 20, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 36, 10, 5, Date.now(), 'ws://localhost:8081');
 
 /******/ })()
 ;

@@ -14,7 +14,7 @@ export class ScrollingText {
     // Обновление позиции с учётом времени
     updatePosition(deltaTime: number): void {
         this.position -= this.speed * deltaTime;
-        console.log("-----",this.speed, deltaTime, this.position)
+        console.log("+-----",this.speed, deltaTime, this.position)
 
         // Получаем реальную ширину текста из DOM-элемента
         const textElement = document.createElement('span');
