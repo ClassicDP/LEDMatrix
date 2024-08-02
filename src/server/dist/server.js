@@ -39,13 +39,11 @@ wss.on('connection', (ws) => {
         const request = JSON.parse(message);
         if (request.frameGroup) {
             clients = clients.filter(client => client !== ws);
-            console.log('Processing frame group');
             const frameGroup = request.frameGroup;
             yield captureAndSendScreenshot(frameGroup);
             ws.send('screenshot_done');
             // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, frameGroup.startTime - Date.now());
-            console.log(`Scheduling next frame group in ${delay / 2}ms`);
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -83,7 +81,6 @@ wss.on('connection', (ws) => {
 function captureAndSendScreenshot(frameGroup) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('Capturing screenshot for frame group');
             const { totalHeight, frameCount } = frameGroup;
             yield page.evaluate((totalHeight) => {
                 document.getElementById('animation-container').style.height = `${totalHeight}px`;

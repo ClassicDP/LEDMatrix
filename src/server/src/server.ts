@@ -53,7 +53,6 @@ wss.on('connection', (ws: WebSocket) => {
 
         if (request.frameGroup) {
             clients = clients.filter(client => client !== ws);
-            console.log('Processing frame group');
             const frameGroup: FrameGroup = request.frameGroup;
             await captureAndSendScreenshot(frameGroup);
 
@@ -62,7 +61,6 @@ wss.on('connection', (ws: WebSocket) => {
             // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, frameGroup.startTime - Date.now());
 
-            console.log(`Scheduling next frame group in ${delay/2}ms`);
 
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {

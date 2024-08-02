@@ -267,7 +267,7 @@ class AnimationFrameGenerator {
     }
 }
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 60, 15, 15, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 60, 15, 20, Date.now(), 'ws://localhost:8081');
 
 /******/ })()
 ;
