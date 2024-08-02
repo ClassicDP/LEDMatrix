@@ -38,11 +38,12 @@ wss.on('connection', (ws) => {
             yield captureAndSendScreenshot(frameGroup);
             ws.send('screenshot_done');
             // Calculate the delay based on the inter-frame period
-            const delay = Date.now() - frameGroup.startTime;
+            const delay = frameGroup.startTime - Date.now();
+            console.log(delay);
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
-            }, 1000);
+            }, delay);
         }
         else {
             console.log('Unknown message received:', message);
