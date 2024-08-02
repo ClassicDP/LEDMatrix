@@ -27,16 +27,16 @@ class LEDMatrix {
         const frame = document.createElement('div');
         frame.className = 'frame';
         frame.style.position = 'absolute';
-        frame.style.width = `${this.width}px`;
+        // frame.style.width = `${this.width}px`;
         frame.style.height = `${this.height / this.frameCount}px`; // высота фрейма должна быть меньше общей высоты, если количество кадров больше 1
-        frame.style.overflow = 'hidden';
-        frame.style.left = `${Math.floor(positionX)}px`;
+        // frame.style.overflow = 'hidden';
         frame.style.top = `${positionY}px`;
         const rainbowText = document.createElement('div');
         rainbowText.className = 'rainbow-text';
         rainbowText.innerHTML = text;
         rainbowText.style.position = 'absolute';
         rainbowText.style.whiteSpace = 'nowrap';
+        rainbowText.style.left = `${Math.floor(positionX)}px`;
         frame.appendChild(rainbowText);
         this.container.appendChild(frame);
     }
@@ -79,16 +79,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ScrollingText: () => (/* binding */ ScrollingText)
 /* harmony export */ });
 class ScrollingText {
-    constructor(text, resolutionX, speed) {
+    constructor(text, resolutionX, speed, startTime) {
         this.text = text;
+        this.startTime = startTime;
         this.resolutionX = resolutionX;
         this.speed = speed;
         this.position = resolutionX; // Начальная позиция текста
     }
     // Обновление позиции с учётом времени
-    updatePosition(deltaTime) {
-        this.position -= this.speed * deltaTime;
-        console.log("+-----", this.speed, deltaTime, this.position);
+    updatePosition(currentTime) {
         // Получаем реальную ширину текста из DOM-элемента
         const textElement = document.createElement('span');
         textElement.style.visibility = 'hidden'; // Скрываем элемент от отображения
@@ -96,9 +95,11 @@ class ScrollingText {
         textElement.textContent = this.text;
         document.body.appendChild(textElement);
         const textWidth = textElement.offsetWidth;
+        this.position = this.resolutionX - (this.speed * (currentTime - this.startTime));
         document.body.removeChild(textElement);
         if (this.position < -textWidth) {
             this.position = this.resolutionX;
+            this.startTime = currentTime;
         }
     }
     // Установка нового текста
@@ -195,7 +196,7 @@ class AnimationFrameGenerator {
         this.frameCount = frameCount;
         this.speed = speed / 1000;
         this.generatedGroups = 0;
-        this.scrollingText = new _scrollingText__WEBPACK_IMPORTED_MODULE_1__.ScrollingText("", width, this.speed);
+        this.scrollingText = new _scrollingText__WEBPACK_IMPORTED_MODULE_1__.ScrollingText("", width, this.speed, startTime);
         this.matrix = new _ledMatrixRenderer__WEBPACK_IMPORTED_MODULE_0__.LEDMatrix(containerId, width, height * frameCount, frameCount);
         this.ws = new WebSocket(wsUrl);
         this.ws.onopen = () => {
@@ -204,7 +205,6 @@ class AnimationFrameGenerator {
         this.ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                console.log('+++Received message from server:', message);
                 if (message.command === 'generateNextGroup') {
                     this.generateAndSendNextGroup();
                 }
@@ -237,17 +237,16 @@ class AnimationFrameGenerator {
     }
     generateNextGroup() {
         this.clearDOM();
-        console.log(this.framesPerSecond);
         const textArray = this.generateTimeStrings();
         const frameInterval = 1000 / this.framesPerSecond;
         let groupStartTime = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
         const framePositions = [];
         for (let i = 0; i < this.frameCount; i++) {
             const currentTime = groupStartTime + i * frameInterval;
-            const deltaTime = currentTime - groupStartTime;
             this.scrollingText.setText(textArray[i]);
-            this.scrollingText.updatePosition(deltaTime);
-            const progress = i / this.frameCount;
+            this.scrollingText.updatePosition(currentTime);
+            const rainbowPeriod = 2000;
+            const progress = ((currentTime - this.startTime) % rainbowPeriod) / rainbowPeriod;
             const gradientText = (0,_rainbow__WEBPACK_IMPORTED_MODULE_2__.createRainbowGradient)(this.scrollingText.getText(), progress);
             this.matrix.renderFrame(gradientText, this.scrollingText.getPosition(), i * this.height);
             framePositions.push(this.scrollingText.getPosition());
@@ -268,7 +267,7 @@ class AnimationFrameGenerator {
     }
 }
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 36, 10, 5, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 60, 15, 15, Date.now(), 'ws://localhost:8081');
 
 /******/ })()
 ;

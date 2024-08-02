@@ -19,10 +19,9 @@ export class LEDMatrix {
         const frame = document.createElement('div');
         frame.className = 'frame';
         frame.style.position = 'absolute';
-        frame.style.width = `${this.width}px`;
+        // frame.style.width = `${this.width}px`;
         frame.style.height = `${this.height / this.frameCount}px`; // высота фрейма должна быть меньше общей высоты, если количество кадров больше 1
-        frame.style.overflow = 'hidden';
-        frame.style.left = `${Math.floor(positionX)}px`;
+        // frame.style.overflow = 'hidden';
         frame.style.top = `${positionY}px`;
 
         const rainbowText = document.createElement('div');
@@ -30,6 +29,7 @@ export class LEDMatrix {
         rainbowText.innerHTML = text;
         rainbowText.style.position = 'absolute';
         rainbowText.style.whiteSpace = 'nowrap';
+        rainbowText.style.left = `${Math.floor(positionX)}px`;
 
         frame.appendChild(rainbowText);
         this.container.appendChild(frame);

@@ -11,7 +11,7 @@ class AnimationFrameGenerator {
         this.frameCount = frameCount;
         this.speed = speed / 1000;
         this.generatedGroups = 0;
-        this.scrollingText = new ScrollingText("", width, this.speed);
+        this.scrollingText = new ScrollingText("", width, this.speed, startTime);
         this.matrix = new LEDMatrix(containerId, width, height * frameCount, frameCount);
         this.ws = new WebSocket(wsUrl);
         this.ws.onopen = () => {
@@ -20,7 +20,6 @@ class AnimationFrameGenerator {
         this.ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                console.log('+++Received message from server:', message);
                 if (message.command === 'generateNextGroup') {
                     this.generateAndSendNextGroup();
                 }
@@ -53,17 +52,16 @@ class AnimationFrameGenerator {
     }
     generateNextGroup() {
         this.clearDOM();
-        console.log(this.framesPerSecond);
         const textArray = this.generateTimeStrings();
         const frameInterval = 1000 / this.framesPerSecond;
         let groupStartTime = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
         const framePositions = [];
         for (let i = 0; i < this.frameCount; i++) {
             const currentTime = groupStartTime + i * frameInterval;
-            const deltaTime = currentTime - groupStartTime;
             this.scrollingText.setText(textArray[i]);
-            this.scrollingText.updatePosition(deltaTime);
-            const progress = i / this.frameCount;
+            this.scrollingText.updatePosition(currentTime);
+            const rainbowPeriod = 2000;
+            const progress = ((currentTime - this.startTime) % rainbowPeriod) / rainbowPeriod;
             const gradientText = createRainbowGradient(this.scrollingText.getText(), progress);
             this.matrix.renderFrame(gradientText, this.scrollingText.getPosition(), i * this.height);
             framePositions.push(this.scrollingText.getPosition());
@@ -84,5 +82,5 @@ class AnimationFrameGenerator {
     }
 }
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 36, 10, 5, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 60, 15, 15, Date.now(), 'ws://localhost:8081');
 //# sourceMappingURL=index.js.map

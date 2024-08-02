@@ -13,7 +13,7 @@ const ctx = canvas.getContext('2d');
 const timestampSpan = document.getElementById('timestamp');
 const deltaSpan = document.getElementById('delta');
 const fpsSpan = document.getElementById('fps');
-const scale = 8;
+const scale = 5;
 const width = 96;
 const height = 32;
 canvas.width = width * scale;
@@ -42,6 +42,9 @@ const bufferLimit = 100;
 let frameCount = 0;
 let referenceFrameTime = 0;
 let referenceWallTime = 0;
+const wait = (ms) => __awaiter(void 0, void 0, void 0, function* () {
+    return new Promise(res => setTimeout(res, ms));
+});
 ws.onmessage = (event) => {
     const frame = JSON.parse(event.data);
     if (!frame.timeStamp)
@@ -58,13 +61,17 @@ ws.onmessage = (event) => {
     frameCount++;
 };
 let fps = 0;
+let lastFTime = 0;
 function displayFrame() {
-    if (frameBuffer.length > 10) {
-        const frame = frameBuffer.shift();
-        const frameTime = new Date(frame.timeStamp).getTime();
-        const currentTime = Date.now();
-        const expectedDisplayTime = referenceWallTime + (frameTime - referenceFrameTime);
-        if (currentTime >= expectedDisplayTime || expectedDisplayTime - currentTime > 250) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (frameBuffer.length > 0) {
+            const frame = frameBuffer.shift();
+            const frameTime = new Date(frame.timeStamp).getTime();
+            const currentTime = Date.now();
+            const expectedDisplayTime = referenceWallTime + (frameTime - referenceFrameTime);
+            if (currentTime < frameTime) {
+                yield wait(frameTime - currentTime);
+            }
             fps++;
             const image = new Image();
             image.src = `data:image/png;base64,${frame.imageBuffer}`;
@@ -73,20 +80,18 @@ function displayFrame() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
                 drawPixelGrid();
-                deltaSpan.textContent = `${Date.now() - frameTime} ms`;
+                deltaSpan.textContent = `${Date.now() - frameTime} ms` + " buff: " + frameBuffer.length + " delta frame: " + (lastFTime - frameTime).toString();
+                lastFTime = frameTime;
                 timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
             };
         }
-        else {
-            frameBuffer.unshift(frame);
-            const delay = expectedDisplayTime - currentTime;
-            setTimeout(displayFrame, delay);
-            return;
-        }
-    }
-    requestAnimationFrame(displayFrame);
+        requestAnimationFrame(displayFrame);
+    });
 }
-setInterval(() => { fpsSpan.textContent = fps.toString(); fps = 0; }, 1000);
+setInterval(() => {
+    fpsSpan.textContent = fps.toString();
+    fps = 0;
+}, 1000);
 ws.onopen = () => __awaiter(void 0, void 0, void 0, function* () {
     displayFrame();
 });

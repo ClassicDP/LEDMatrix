@@ -4,7 +4,7 @@ const timestampSpan = document.getElementById('timestamp') as HTMLSpanElement;
 const deltaSpan = document.getElementById('delta') as HTMLSpanElement;
 const fpsSpan = document.getElementById('fps') as HTMLSpanElement;
 
-const scale = 8;
+const scale = 5;
 
 const width = 96;
 const height = 32;
@@ -37,7 +37,9 @@ const bufferLimit = 100;
 let frameCount = 0;
 let referenceFrameTime = 0;
 let referenceWallTime = 0;
-
+const wait = async (ms: number) => {
+    return new Promise(res => setTimeout(res, ms))
+}
 ws.onmessage = (event) => {
     const frame = JSON.parse(event.data);
     if (!frame.timeStamp) return;
@@ -57,37 +59,39 @@ ws.onmessage = (event) => {
 };
 
 let fps = 0;
-function displayFrame() {
-    if (frameBuffer.length > 10) {
+let lastFTime = 0
+
+async function displayFrame() {
+    if (frameBuffer.length > 0) {
         const frame = frameBuffer.shift();
         const frameTime = new Date(frame.timeStamp).getTime();
         const currentTime = Date.now();
         const expectedDisplayTime = referenceWallTime + (frameTime - referenceFrameTime);
-
-        if (currentTime >= expectedDisplayTime || expectedDisplayTime - currentTime > 250) {
-            fps++;
-            const image = new Image();
-            image.src = `data:image/png;base64,${frame.imageBuffer}`;
-
-            image.onload = () => {
-                ctx.imageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                drawPixelGrid();
-                deltaSpan.textContent = `${Date.now() - frameTime} ms`;
-                timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
-            };
-        } else {
-            frameBuffer.unshift(frame);
-            const delay = expectedDisplayTime - currentTime;
-            setTimeout(displayFrame, delay);
-            return;
+        if (currentTime < frameTime) {
+            await wait(frameTime - currentTime)
         }
+        fps++;
+        const image = new Image();
+        image.src = `data:image/png;base64,${frame.imageBuffer}`;
+
+        image.onload = () => {
+            ctx.imageSmoothingEnabled = false;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            drawPixelGrid();
+            deltaSpan.textContent = `${Date.now() - frameTime} ms` + " buff: " + frameBuffer.length + " delta frame: " + (lastFTime - frameTime).toString();
+            lastFTime = frameTime;
+            timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
+        };
+
     }
     requestAnimationFrame(displayFrame);
 }
 
-setInterval(() => { fpsSpan.textContent = fps.toString(); fps = 0; }, 1000);
+setInterval(() => {
+    fpsSpan.textContent = fps.toString();
+    fps = 0;
+}, 1000);
 
 ws.onopen = async () => {
     displayFrame();

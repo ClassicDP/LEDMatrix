@@ -36,7 +36,6 @@ wss.on('connection', (ws) => {
         console.log('Client disconnected');
     });
     ws.on('message', (message) => __awaiter(void 0, void 0, void 0, function* () {
-        console.log('Received message from client:', message);
         const request = JSON.parse(message);
         if (request.frameGroup) {
             clients = clients.filter(client => client !== ws);
@@ -46,11 +45,11 @@ wss.on('connection', (ws) => {
             ws.send('screenshot_done');
             // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, frameGroup.startTime - Date.now());
-            console.log(`Scheduling next frame group in ${delay}ms`);
+            console.log(`Scheduling next frame group in ${delay / 2}ms`);
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
-            }, delay);
+            }, delay / 2);
         }
         else {
             console.log('Unknown message received:', message);

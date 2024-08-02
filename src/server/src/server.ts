@@ -48,7 +48,7 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('message', async (message: string) => {
-        console.log('Received message from client:', message);
+
         const request = JSON.parse(message);
 
         if (request.frameGroup) {
@@ -62,12 +62,12 @@ wss.on('connection', (ws: WebSocket) => {
             // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, frameGroup.startTime - Date.now());
 
-            console.log(`Scheduling next frame group in ${delay}ms`);
+            console.log(`Scheduling next frame group in ${delay/2}ms`);
 
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
-            }, delay);
+            }, delay/2);
         } else {
             console.log('Unknown message received:', message);
         }
