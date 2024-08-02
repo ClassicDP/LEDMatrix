@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Matrix Animation</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+            font-family: "Courier New", monospace;
+            font-smooth: never;
+            -webkit-font-smoothing: none;
+        }
+
+        #animation-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            position: relative;
+        }
+
+        .frame {
+            position: relative;
+            width: 100%;
+            height: 32px;
+            overflow: hidden;
+        }
+
+        .rainbow-text {
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+            background-size: 400%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Удаляем ключевые кадры для остановки анимации */
+    </style>
+<script defer src="index.bundle.js"></script></head>
+<body>
+<div id="animation-container"></div>
+</body>
+</html>
+
+
