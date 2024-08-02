@@ -1,6 +1,6 @@
-import { LEDMatrix } from './ledMatrixRenderer';
-import { ScrollingText } from './scrollingText';
-import { createRainbowGradient } from './rainbow';
+import {LEDMatrix} from './ledMatrixRenderer';
+import {ScrollingText} from './scrollingText';
+import {createRainbowGradient} from './rainbow';
 
 interface FrameGroup {
     startTime: number;
@@ -30,10 +30,10 @@ class AnimationFrameGenerator {
         this.height = height;
         this.framesPerSecond = framesPerSecond;
         this.frameCount = frameCount;
-        this.speed = speed/1000;
+        this.speed = speed / 1000;
         this.currentTime = startTime;
         this.generatedGroups = 0;
-        this.scrollingText = new ScrollingText("", width, speed);
+        this.scrollingText = new ScrollingText("", width, this.speed);
         this.matrix = new LEDMatrix(containerId, width, height * frameCount);
         this.ws = new WebSocket(wsUrl);
 
@@ -124,9 +124,9 @@ class AnimationFrameGenerator {
 
     generateAndSendNextGroup(): void {
         const frameGroup = this.generateNextGroup();
-        this.ws.send(JSON.stringify({ frameGroup }));
+        this.ws.send(JSON.stringify({frameGroup}));
     }
 }
 
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 30, 10, 20, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 30, 10, 10, Date.now(), 'ws://localhost:8081');

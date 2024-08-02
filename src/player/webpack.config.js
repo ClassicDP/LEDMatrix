@@ -29,9 +29,9 @@ export default {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            template: './src/player.html', // Путь к вашему шаблону HTML
+            template: './src/player.html',
             chunks: ['player'],
-            filename: 'index.html', // Как будет называться файл в dist
+            filename: 'index.html',
             inject: true,
         }),
     ],
@@ -40,9 +40,9 @@ export default {
             directory: path.join(__dirname, 'dist'),
         },
         compress: true,
-        port: 8082, // Убедитесь, что порт свободен
+        port: 8082,
         hot: true,
-        open: true,
+        open: true, // This line ensures that the browser opens automatically
         watchFiles: [
             'dist/*.js',
             'dist/*.html',

@@ -12,7 +12,7 @@ export default {
     devtool: 'source-map',
     output: {
         filename: '[name].bundle.js',
-        path: path.resolve(__dirname, 'dist'), // Путь до dist
+        path: path.resolve(__dirname, 'dist'),
         clean: true,
     },
     module: {
@@ -29,7 +29,7 @@ export default {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            template: './src/index.html', // Убедитесь, что путь правильный
+            template: './src/index.html',
             chunks: ['index'],
             filename: 'index.html',
             inject: true,
@@ -42,11 +42,12 @@ export default {
         compress: true,
         port: 8080,
         hot: true,
+        open: true, // This will open the browser automatically
         watchFiles: [
-            'dist/*.js',     // Наблюдаем за всеми JS-файлами в папке dist
-            'dist/*.html',   // Наблюдаем за всеми HTML-файлами в папке dist
-            'src/**/*.html', // Также наблюдаем за исходными HTML-файлами
-            'src/**/*.ts',   // Наблюдаем за изменениями файлов TypeScript
+            'dist/*.js',
+            'dist/*.html',
+            'src/**/*.html',
+            'src/**/*.ts',
         ],
     },
     mode: 'development',

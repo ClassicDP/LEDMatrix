@@ -1,4 +1,14 @@
-"use strict";
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./src/player.ts":
+/*!***********************!*\
+  !*** ./src/player.ts ***!
+  \***********************/
+/***/ (function() {
+
+
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -93,4 +103,19 @@ ws.onopen = () => __awaiter(void 0, void 0, void 0, function* () {
 ws.onerror = (error) => {
     console.error('WebSocket error:', error);
 };
-//# sourceMappingURL=player.js.map
+
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = {};
+/******/ 	__webpack_modules__["./src/player.ts"]();
+/******/ 	
+/******/ })()
+;
+//# sourceMappingURL=player.bundle.js.map
