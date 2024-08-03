@@ -2,24 +2,13 @@
 <project version="4">
   <component name="WebResourcesPaths">
     <contentEntries>
-      <entry url="file://$PROJECT_DIR$/src/client">
+      <entry url="file://$PROJECT_DIR$">
         <entryData>
           <resourceRoots>
             <path value="file://$PROJECT_DIR$/src/client" />
-          </resourceRoots>
-        </entryData>
-      </entry>
-      <entry url="file://$PROJECT_DIR$/src/player">
-        <entryData>
-          <resourceRoots>
             <path value="file://$PROJECT_DIR$/src/player" />
-          </resourceRoots>
-        </entryData>
-      </entry>
-      <entry url="file://$PROJECT_DIR$/src/server">
-        <entryData>
-          <resourceRoots>
             <path value="file://$PROJECT_DIR$/src/server" />
+            <path value="file://$PROJECT_DIR$" />
           </resourceRoots>
         </entryData>
       </entry>

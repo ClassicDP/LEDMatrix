@@ -9,6 +9,7 @@ interface FrameGroup {
     speed: number;
     framePositions: number[];
     totalHeight: number;
+    width: number;
 }
 
 class AnimationFrameGenerator {
@@ -110,7 +111,8 @@ class AnimationFrameGenerator {
             frameCount: this.frameCount,
             speed: this.speed,
             framePositions: framePositions,
-            totalHeight: this.height * this.frameCount
+            totalHeight: this.height * this.frameCount,
+            width: this.width
         };
     }
 
@@ -121,4 +123,4 @@ class AnimationFrameGenerator {
 }
 
 // Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 60, 15, 20, Date.now(), 'ws://localhost:8081');
+const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 50, 20, 25, Date.now(), 'ws://localhost:8081');

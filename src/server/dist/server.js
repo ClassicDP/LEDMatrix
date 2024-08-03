@@ -40,6 +40,7 @@ wss.on('connection', (ws) => {
         if (request.frameGroup) {
             clients = clients.filter(client => client !== ws);
             const frameGroup = request.frameGroup;
+            yield page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
             yield captureAndSendScreenshot(frameGroup);
             ws.send('screenshot_done');
             // Calculate the delay based on the inter-frame period
@@ -113,7 +114,13 @@ function captureAndSendScreenshot(frameGroup) {
             });
         }
         catch (error) {
-            console.error(`Error capturing screenshot:`, error);
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+            const timeWithMilliseconds = `${hours}:${minutes}:${seconds}.${milliseconds}`;
+            console.error(timeWithMilliseconds, `Error capturing screenshot:`, error);
         }
     });
 }

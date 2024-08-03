@@ -18,6 +18,7 @@ interface FrameGroup {
     speed: number;
     framePositions: number[];
     totalHeight: number;
+    width: number;
 }
 
 const server = http.createServer();
@@ -54,6 +55,9 @@ wss.on('connection', (ws: WebSocket) => {
         if (request.frameGroup) {
             clients = clients.filter(client => client !== ws);
             const frameGroup: FrameGroup = request.frameGroup;
+
+            await page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
+
             await captureAndSendScreenshot(frameGroup);
 
             ws.send('screenshot_done');
@@ -150,7 +154,14 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
         });
 
     } catch (error) {
-        console.error(`Error capturing screenshot:`, error);
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+
+        const timeWithMilliseconds = `${hours}:${minutes}:${seconds}.${milliseconds}`;
+        console.error(timeWithMilliseconds, `Error capturing screenshot:`, error);
     }
 }
 

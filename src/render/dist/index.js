@@ -73,8 +73,7 @@ class AnimationFrameGenerator {
             frameCount: this.frameCount,
             speed: this.speed,
             framePositions: framePositions,
-            totalHeight: this.height * this.frameCount,
-            width: this.width
+            totalHeight: this.height * this.frameCount
         };
     }
     generateAndSendNextGroup() {
