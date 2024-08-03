@@ -109,7 +109,6 @@ wss.on('connection', (ws: WebSocket) => {
 
 async function captureAndSendScreenshot(frameGroup: FrameGroup) {
     try {
-        console.log('Capturing screenshot for frame group');
         const { totalHeight, frameCount } = frameGroup;
 
         await page.evaluate((totalHeight: any) => {
