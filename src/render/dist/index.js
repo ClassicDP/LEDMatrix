@@ -36,16 +36,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
     });
     // Добавление модификаторов к элементам
-    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 50);
+    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20);
     textElement1.addModifier(scrollingModifier1);
     const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
     textElement1.addModifier(rainbowModifier1);
-    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 40);
+    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30);
     textElement2.addModifier(scrollingModifier2);
     const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
     textElement2.addModifier(rainbowModifier2);
     // Создание и отображение группы кадров с несколькими элементами
-    const matrix = new Matrix(128, 64, 60, 20, Date.now());
+    const matrix = new Matrix(128, 64, 30, 15, Date.now());
     if (!ws) {
         ws = new WebSocket('ws://localhost:8081');
         ws.onopen = () => {

@@ -1,6 +1,5 @@
-
 import path from 'path';
-import { Page, webkit } from 'playwright';
+import { Page, webkit, Browser, BrowserContext } from 'playwright';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -25,6 +24,8 @@ const server = http.createServer();
 const wss = new WebSocketServer({ server });
 let clients: WebSocket[] = [];
 let page: Page;
+let browser: Browser;
+let context: BrowserContext;
 
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -48,18 +49,16 @@ wss.on('connection', (ws: WebSocket) => {
         const request = JSON.parse(message);
 
         if (request.frameGroup) {
-            clients = clients.filter(client => client !== ws);
             const frameGroup: FrameGroup = request.frameGroup;
 
+            // Устанавливаем размер окна просмотра
             await page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
 
             await captureAndSendScreenshot(frameGroup);
 
             let deltaT = frameGroup.startTime - Date.now();
-            // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, deltaT);
 
-            // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
             }, delay / 2);
@@ -74,10 +73,20 @@ wss.on('connection', (ws: WebSocket) => {
 });
 
 (async () => {
-    const browser = await webkit.launch();
-    const context = await browser.newContext();
+    await launchBrowser();
 
-    // Очистка кэша и куки
+    setInterval(async () => {
+        console.log('Restarting browser to avoid memory leaks...');
+        await browser.close();
+        await launchBrowser();
+    }, 30000); // Перезапуск браузера каждые 30 секунд
+})();
+
+async function launchBrowser() {
+    browser = await webkit.launch();
+    context = await browser.newContext();
+
+    // Очистка кэша и куки при старте
     await context.clearCookies();
     console.log('Browser cache and cookies cleared');
 
@@ -98,62 +107,88 @@ wss.on('connection', (ws: WebSocket) => {
         await browser.close();
         console.log('Browser closed');
     });
-})();
+}
 
 async function captureAndSendScreenshot(frameGroup: FrameGroup) {
-    try {
-        const { totalHeight, frameCount } = frameGroup;
+    const maxRetries = 5; // Максимальное количество попыток
+    const delayBetweenRetries = 10; // Задержка между попытками в мс
 
-        await page.evaluate((totalHeight: any) => {
-            document.getElementById('matrix-container')!.style.height = `${totalHeight}px`;
-        }, totalHeight);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const { totalHeight, frameCount } = frameGroup;
 
-        const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
-        const boundingBox = await elementHandle.boundingBox();
-
-        const screenshotBuffer = await page.screenshot({
-            clip: boundingBox!,
-            timeout: 100,
-        });
-
-        const imageBuffer = Buffer.from(screenshotBuffer);
-
-        const frameHeight = Math.floor(totalHeight / frameCount);
-        const frames: Frame[] = [];
-
-        for (let i = 0; i < frameCount; i++) {
-            const yPosition = i * frameHeight;
-
-            const croppedBuffer = await sharp(imageBuffer)
-                .extract({ width: boundingBox!.width, height: frameHeight, left: 0, top: yPosition })
-                .toBuffer();
-
-            frames.push({
-                timeStamp: frameGroup.startTime + i * frameGroup.frameInterval,
-                imageBuffer: croppedBuffer.toString('base64'),
-            });
-        }
-
-        frames.forEach((frame) => {
-            clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify(frame));
+            await page.evaluate((totalHeight: any) => {
+                const container = document.getElementById('matrix-container');
+                if (container) {
+                    container.style.height = `${totalHeight}px`;
                 }
+            }, totalHeight);
+
+            const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
+            const boundingBox = await elementHandle.boundingBox();
+
+            const screenshotBuffer = await page.screenshot({
+                clip: boundingBox!,
+                timeout: 100,
             });
-        });
 
-    } catch (error) {
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+            const imageBuffer = Buffer.from(screenshotBuffer);
 
-        const timeWithMilliseconds = `${hours}:${minutes}:${seconds}.${milliseconds}`;
-        console.error(timeWithMilliseconds, `Error capturing screenshot:`, error);
+            const frameHeight = Math.floor(totalHeight / frameCount);
+            const frames: Frame[] = [];
+
+            for (let i = 0; i < frameCount; i++) {
+                const yPosition = i * frameHeight;
+
+                const croppedBuffer = await sharp(imageBuffer)
+                    .extract({ width: boundingBox!.width, height: frameHeight, left: 0, top: yPosition })
+                    .toBuffer();
+
+                frames.push({
+                    timeStamp: frameGroup.startTime + i * frameGroup.frameInterval,
+                    imageBuffer: croppedBuffer.toString('base64'),
+                });
+            }
+
+            frames.forEach((frame) => {
+                clients.forEach((client) => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify(frame));
+                    }
+                });
+            });
+
+            console.log('Screenshot captured successfully');
+            return; // Если скриншот успешно создан, выходим из функции
+
+        } catch (error) {
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < maxRetries) {
+                console.log(`Retrying in ${delayBetweenRetries}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delayBetweenRetries));
+            } else {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+
+                const timeWithMilliseconds = `${hours}:${minutes}:${seconds}.${milliseconds}`;
+                console.error(timeWithMilliseconds, `Failed to capture screenshot after ${maxRetries} attempts.`);
+            }
+        }
     }
 }
 
 server.listen(8081, () => {
     console.log('WebSocket server running on port 8081');
 });
+
+// Логирование использования памяти каждые 10 секунд
+setInterval(() => {
+    const memoryUsage = process.memoryUsage();
+    console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
+}, 10000);

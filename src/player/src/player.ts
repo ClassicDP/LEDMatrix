@@ -17,7 +17,7 @@ const wait = async (ms: number) => {
     return new Promise(res => setTimeout(res, ms));
 }
 
-const ws = new WebSocket('ws://localhost:8081');
+const ws = new WebSocket('ws://192.168.1.85:8081');
 
 ws.onmessage = (event) => {
     const frame = JSON.parse(event.data);

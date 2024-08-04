@@ -49,38 +49,43 @@ class Matrix {
         this.lastEndTime = startTime;
     }
     generateNextGroup(container, matrixElements) {
-        // Очищаем контейнер от всех элементов, чтобы избежать артефактов
-        container.innerHTML = '';
+        const existingFrames = Array.from(container.children);
         const frameInterval = 1000 / this.framesPerSecond;
         const frameCount = this.framesPerGroup;
         // Начало новой группы
         const startTime = this.lastEndTime;
-        // Рассчитываем позиции каждого кадра
         const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
         this.lastEndTime = startTime + frameInterval * frameCount;
-        // Создаем кадры и размещаем их вертикально один под другим
-        for (let i = 0; i < framePositions.length; i++) {
-            const frame = document.createElement('div');
-            frame.style.position = 'absolute';
-            frame.style.width = `${this.width}px`;
-            frame.style.height = `${this.height}px`;
-            frame.style.overflow = 'hidden'; // Скрываем текст за пределами блока
-            frame.style.top = `${i * this.height}px`; // Располагаем один блок под другим
+        for (let i = 0; i < frameCount; i++) {
+            let frame;
+            if (i < existingFrames.length) {
+                // Используем существующий элемент
+                frame = existingFrames[i];
+            }
+            else {
+                // Создаем новый элемент, если его еще нет
+                frame = document.createElement('div');
+                frame.style.position = 'absolute';
+                frame.style.width = `${this.width}px`;
+                frame.style.height = `${this.height}px`;
+                frame.style.overflow = 'hidden';
+                container.appendChild(frame);
+            }
+            frame.style.top = `${i * this.height}px`;
+            // Очищаем содержимое фрейма перед добавлением новых элементов
+            frame.innerHTML = '';
             // Применяем модификаторы и рендерим каждый элемент матрицы
             for (const matrixElement of matrixElements) {
                 matrixElement.applyModifiers(framePositions[i]);
                 matrixElement.renderTo(frame);
             }
-            // Вставляем содержимое в контейнер кадра
-            container.appendChild(frame);
         }
-        // Удаляем лишние элементы, если они остались
-        const extraElements = document.querySelectorAll('#matrix-container > div');
-        extraElements.forEach(el => {
-            if (!el.querySelector('div')) {
-                el.remove();
+        // Удаляем лишние элементы, если они есть
+        if (existingFrames.length > frameCount) {
+            for (let j = existingFrames.length - 1; j >= frameCount; j--) {
+                container.removeChild(existingFrames[j]);
             }
-        });
+        }
         const totalHeight = this.height * frameCount;
         return new _FrameGroup__WEBPACK_IMPORTED_MODULE_0__.FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
     }
@@ -150,8 +155,8 @@ class MatrixElement {
     renderTo(container) {
         const div = document.createElement('div');
         div.style.position = 'absolute';
-        div.style.left = `${Math.floor(this.x)}px`;
-        div.style.top = `${Math.floor(this.y)}px`;
+        div.style.left = `${Math.floor(this.x + 0.0001)}px`;
+        div.style.top = `${Math.floor(this.y + 0.0001)}px`;
         div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
@@ -335,16 +340,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
     });
     // Добавление модификаторов к элементам
-    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 50);
+    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20);
     textElement1.addModifier(scrollingModifier1);
     const rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
     textElement1.addModifier(rainbowModifier1);
-    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 40);
+    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30);
     textElement2.addModifier(scrollingModifier2);
     const rainbowModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
     textElement2.addModifier(rainbowModifier2);
     // Создание и отображение группы кадров с несколькими элементами
-    const matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    const matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 30, 15, Date.now());
     if (!ws) {
         ws = new WebSocket('ws://localhost:8081');
         ws.onopen = () => {
