@@ -2,7 +2,10 @@ import { Matrix } from './Matrix';
 import { MatrixElement } from './MatrixElement';
 import { ScrollingTextModifier, RainbowEffectModifier } from './Modifiers';
 
+let ws: WebSocket | null = null;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
+
     const container = document.getElementById('matrix-container');
 
     if (!container) {
@@ -25,6 +28,21 @@ document.addEventListener('DOMContentLoaded', () => {
         fontWeight: 'bold'
     });
 
+    // Создание элемента для отображения текущего времени
+    const timeElement = new MatrixElement("", 0, 15, 128, 20); // Центрируем элемент по вертикали
+    timeElement.updateTextStyle({
+        fontSize: '12px',
+        color: 'yellow',
+        fontWeight: 'bold',
+        textAlign: 'center' // Выравнивание текста по центру
+    });
+
+    // Добавление коллбэка для обновления времени
+    timeElement.setTextUpdateCallback((timestamp) => {
+        const now = new Date(timestamp);
+        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+    });
+
     // Добавление модификаторов к элементам
     const scrollingModifier1 = new ScrollingTextModifier(textElement1, 50);
     textElement1.addModifier(scrollingModifier1);
@@ -40,18 +58,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Создание и отображение группы кадров с несколькими элементами
     const matrix = new Matrix(128, 64, 60, 20, Date.now());
-    // setInterval(()=>matrix.generateNextGroup(container, [textElement1, textElement2]), 1000);
-    let ws = new WebSocket('ws://localhost:8081');
-    ws.onmessage = (event) => {
-        try {
-            const message = JSON.parse(event.data);
-            if (message.command === 'generateNextGroup') {
-                let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2]);
-                ws.send(JSON.stringify({frameGroup}));
+
+    if (!ws) {
+        ws = new WebSocket('ws://localhost:8081');
+        ws.onopen = () => {
+            console.log('WebSocket connection opened');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.command === 'generateNextGroup') {
+                    let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
+
+                    ws!.send(JSON.stringify({ frameGroup }));
+                }
+            } catch (e) {
+                console.error('Error processing message:', e);
             }
-        } catch (e) {
-        }
-    };
+        };
 
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            ws = null; // Reset the WebSocket instance to allow reconnection
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+    }
 });
-

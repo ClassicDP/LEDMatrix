@@ -41,8 +41,8 @@ export default {
         },
         compress: true,
         port: 8080,
-        hot: true,
-        open: true, // This will open the browser automatically
+        hot: false, // Отключаем HMR
+        open: false, // Отключаем автоматическое открытие браузера
         watchFiles: [
             'dist/*.js',
             'dist/*.html',

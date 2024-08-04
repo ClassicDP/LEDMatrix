@@ -20,13 +20,15 @@ let page;
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+let clientCounter = 0;
 wss.on('connection', (ws) => {
+    const clientId = ++clientCounter;
     clients.push(ws);
-    console.log('Client connected');
+    console.log(`Client connected: ${clientId}`);
     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
     ws.on('close', () => {
         clients = clients.filter((client) => client !== ws);
-        console.log('Client disconnected');
+        console.log(`Client disconnected: ${clientId}`);
     });
     ws.on('message', (message) => __awaiter(void 0, void 0, void 0, function* () {
         const request = JSON.parse(message);
@@ -35,9 +37,9 @@ wss.on('connection', (ws) => {
             const frameGroup = request.frameGroup;
             yield page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
             yield captureAndSendScreenshot(frameGroup);
-            ws.send('screenshot_done');
+            let deltaT = frameGroup.startTime - Date.now();
             // Calculate the delay based on the inter-frame period
-            const delay = Math.max(0, frameGroup.startTime - Date.now());
+            const delay = Math.max(0, deltaT);
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -48,7 +50,7 @@ wss.on('connection', (ws) => {
         }
     }));
     ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        console.error(`WebSocket error with client ${clientId}:`, error);
     });
 });
 (() => __awaiter(void 0, void 0, void 0, function* () {

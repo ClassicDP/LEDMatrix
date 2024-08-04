@@ -53,9 +53,11 @@ class Matrix {
         container.innerHTML = '';
         const frameInterval = 1000 / this.framesPerSecond;
         const frameCount = this.framesPerGroup;
+        // Начало новой группы
         const startTime = this.lastEndTime;
-        this.lastEndTime = startTime + frameInterval * frameCount;
+        // Рассчитываем позиции каждого кадра
         const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
+        this.lastEndTime = startTime + frameInterval * frameCount;
         // Создаем кадры и размещаем их вертикально один под другим
         for (let i = 0; i < framePositions.length; i++) {
             const frame = document.createElement('div');
@@ -298,7 +300,9 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+let ws = null;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
     const container = document.getElementById('matrix-container');
     if (!container) {
         console.error('Container not found!');
@@ -317,6 +321,19 @@ document.addEventListener('DOMContentLoaded', () => {
         color: 'red',
         fontWeight: 'bold'
     });
+    // Создание элемента для отображения текущего времени
+    const timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("", 0, 15, 128, 20); // Центрируем элемент по вертикали
+    timeElement.updateTextStyle({
+        fontSize: '12px',
+        color: 'yellow',
+        fontWeight: 'bold',
+        textAlign: 'center' // Выравнивание текста по центру
+    });
+    // Добавление коллбэка для обновления времени
+    timeElement.setTextUpdateCallback((timestamp) => {
+        const now = new Date(timestamp);
+        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+    });
     // Добавление модификаторов к элементам
     const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 50);
     textElement1.addModifier(scrollingModifier1);
@@ -328,19 +345,31 @@ document.addEventListener('DOMContentLoaded', () => {
     textElement2.addModifier(rainbowModifier2);
     // Создание и отображение группы кадров с несколькими элементами
     const matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
-    // setInterval(()=>matrix.generateNextGroup(container, [textElement1, textElement2]), 1000);
-    let ws = new WebSocket('ws://localhost:8081');
-    ws.onmessage = (event) => {
-        try {
-            const message = JSON.parse(event.data);
-            if (message.command === 'generateNextGroup') {
-                let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2]);
-                ws.send(JSON.stringify({ frameGroup }));
+    if (!ws) {
+        ws = new WebSocket('ws://localhost:8081');
+        ws.onopen = () => {
+            console.log('WebSocket connection opened');
+        };
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.command === 'generateNextGroup') {
+                    let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
+                    ws.send(JSON.stringify({ frameGroup }));
+                }
             }
-        }
-        catch (e) {
-        }
-    };
+            catch (e) {
+                console.error('Error processing message:', e);
+            }
+        };
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            ws = null; // Reset the WebSocket instance to allow reconnection
+        };
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+    }
 });
 
 /******/ })()
