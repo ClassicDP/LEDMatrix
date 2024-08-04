@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import {Page, webkit } from 'playwright';
+import { Page, webkit } from 'playwright';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -30,13 +30,6 @@ let page: Page;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Clear browser cache directory (example path, adjust as needed)
-const cacheDir = path.resolve(__dirname, 'path_to_browser_cache');
-if (fs.existsSync(cacheDir)) {
-    fs.rmSync(cacheDir, { recursive: true, force: true });
-    console.log('Browser cache cleared');
-}
-
 wss.on('connection', (ws: WebSocket) => {
     clients.push(ws);
     console.log('Client connected');
@@ -49,7 +42,6 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('message', async (message: string) => {
-
         const request = JSON.parse(message);
 
         if (request.frameGroup) {
@@ -65,11 +57,10 @@ wss.on('connection', (ws: WebSocket) => {
             // Calculate the delay based on the inter-frame period
             const delay = Math.max(0, frameGroup.startTime - Date.now());
 
-
             // Schedule the next frame group request after the calculated delay
             setTimeout(() => {
                 ws.send(JSON.stringify({ command: 'generateNextGroup' }));
-            }, delay/2);
+            }, delay / 2);
         } else {
             console.log('Unknown message received:', message);
         }
@@ -82,19 +73,16 @@ wss.on('connection', (ws: WebSocket) => {
 
 (async () => {
     const browser = await webkit.launch();
-    const context = await browser.newContext({
-        extraHTTPHeaders: {
-            'Cache-Control': 'no-store', // Disable caching
-        },
+    const context = await browser.newContext();
 
-    });
+    // Очистка кэша и куки
+    await context.clearCookies();
+    console.log('Browser cache and cookies cleared');
+
     page = await context.newPage();
 
-
-
-
-    const filePath = path.join(__dirname, '../../../src/client/dist/index.html');
-    await page.goto(`file://${filePath}`, { waitUntil: 'networkidle' });
+    const filePath = path.join(__dirname, '../../../src/render/dist/index.html');
+    await page.goto(`file://${filePath}`, { waitUntil: 'load' });
 
     console.log('Browser and page loaded');
 
@@ -110,16 +98,15 @@ wss.on('connection', (ws: WebSocket) => {
     });
 })();
 
-
 async function captureAndSendScreenshot(frameGroup: FrameGroup) {
     try {
         const { totalHeight, frameCount } = frameGroup;
 
         await page.evaluate((totalHeight: any) => {
-            document.getElementById('animation-container')!.style.height = `${totalHeight}px`;
+            document.getElementById('matrix-container')!.style.height = `${totalHeight}px`;
         }, totalHeight);
 
-        const elementHandle = await page.waitForSelector('#animation-container', { state: 'visible' });
+        const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
         const boundingBox = await elementHandle.boundingBox();
 
         const screenshotBuffer = await page.screenshot({

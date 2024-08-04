@@ -69,8 +69,8 @@ export class MatrixElement {
     renderTo(container: HTMLElement) {
         const div = document.createElement('div');
         div.style.position = 'absolute';
-        div.style.left = `${this.x}px`;
-        div.style.top = `${this.y}px`;
+        div.style.left = `${Math.floor(this.x)}px`;
+        div.style.top = `${Math.floor(this.y)}px`;
         div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';

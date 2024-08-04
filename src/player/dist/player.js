@@ -36,7 +36,7 @@ function drawPixelGrid() {
         ctx.stroke();
     }
 }
-const ws = new WebSocket('ws://192.168.1.85:8081');
+const ws = new WebSocket('ws://localhost:8081');
 const frameBuffer = [];
 const bufferLimit = 100;
 let frameCount = 0;

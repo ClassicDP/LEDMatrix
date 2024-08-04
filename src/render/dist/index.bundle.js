@@ -2,117 +2,229 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./src/ledMatrixRenderer.ts":
-/*!**********************************!*\
-  !*** ./src/ledMatrixRenderer.ts ***!
-  \**********************************/
+/***/ "./src/FrameGroup.ts":
+/*!***************************!*\
+  !*** ./src/FrameGroup.ts ***!
+  \***************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   LEDMatrix: () => (/* binding */ LEDMatrix)
+/* harmony export */   FrameGroup: () => (/* binding */ FrameGroup)
 /* harmony export */ });
-class LEDMatrix {
-    constructor(containerId, width, height, frameCount) {
-        this.container = document.getElementById(containerId);
+class FrameGroup {
+    constructor(startTime, frameInterval, frameCount, framesPerSecond, framePositions, totalHeight, width) {
+        this.startTime = startTime;
+        this.frameInterval = frameInterval;
+        this.frameCount = frameCount;
+        this.framesPerSecond = framesPerSecond;
+        this.framePositions = framePositions;
+        this.totalHeight = totalHeight;
+        this.width = width;
+    }
+}
+
+
+/***/ }),
+
+/***/ "./src/Matrix.ts":
+/*!***********************!*\
+  !*** ./src/Matrix.ts ***!
+  \***********************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Matrix: () => (/* binding */ Matrix)
+/* harmony export */ });
+/* harmony import */ var _FrameGroup__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./FrameGroup */ "./src/FrameGroup.ts");
+
+class Matrix {
+    constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
         this.width = width;
         this.height = height;
-        this.frameCount = frameCount;
-        this.container.style.width = `${this.width}px`;
-        this.container.style.height = `${this.height}px`;
-        this.container.style.overflow = 'hidden';
-        this.container.style.position = 'relative';
+        this.framesPerSecond = framesPerSecond;
+        this.framesPerGroup = framesPerGroup;
+        this.startTime = startTime;
+        this.lastEndTime = startTime;
     }
-    renderFrame(text, positionX, positionY) {
-        const frame = document.createElement('div');
-        frame.className = 'frame';
-        frame.style.position = 'absolute';
-        // frame.style.width = `${this.width}px`;
-        frame.style.height = `${this.height / this.frameCount}px`; // высота фрейма должна быть меньше общей высоты, если количество кадров больше 1
-        // frame.style.overflow = 'hidden';
-        frame.style.top = `${positionY}px`;
-        const rainbowText = document.createElement('div');
-        rainbowText.className = 'rainbow-text';
-        rainbowText.innerHTML = text;
-        rainbowText.style.position = 'absolute';
-        rainbowText.style.whiteSpace = 'nowrap';
-        rainbowText.style.left = `${Math.floor(positionX)}px`;
-        frame.appendChild(rainbowText);
-        this.container.appendChild(frame);
+    generateNextGroup(container, matrixElements) {
+        // Очищаем контейнер от всех элементов, чтобы избежать артефактов
+        container.innerHTML = '';
+        const frameInterval = 1000 / this.framesPerSecond;
+        const frameCount = this.framesPerGroup;
+        const startTime = this.lastEndTime;
+        this.lastEndTime = startTime + frameInterval * frameCount;
+        const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
+        // Создаем кадры и размещаем их вертикально один под другим
+        for (let i = 0; i < framePositions.length; i++) {
+            const frame = document.createElement('div');
+            frame.style.position = 'absolute';
+            frame.style.width = `${this.width}px`;
+            frame.style.height = `${this.height}px`;
+            frame.style.overflow = 'hidden'; // Скрываем текст за пределами блока
+            frame.style.top = `${i * this.height}px`; // Располагаем один блок под другим
+            // Применяем модификаторы и рендерим каждый элемент матрицы
+            for (const matrixElement of matrixElements) {
+                matrixElement.applyModifiers(framePositions[i]);
+                matrixElement.renderTo(frame);
+            }
+            // Вставляем содержимое в контейнер кадра
+            container.appendChild(frame);
+        }
+        // Удаляем лишние элементы, если они остались
+        const extraElements = document.querySelectorAll('#matrix-container > div');
+        extraElements.forEach(el => {
+            if (!el.querySelector('div')) {
+                el.remove();
+            }
+        });
+        const totalHeight = this.height * frameCount;
+        return new _FrameGroup__WEBPACK_IMPORTED_MODULE_0__.FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
     }
 }
 
 
 /***/ }),
 
-/***/ "./src/rainbow.ts":
-/*!************************!*\
-  !*** ./src/rainbow.ts ***!
-  \************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   createRainbowGradient: () => (/* binding */ createRainbowGradient)
-/* harmony export */ });
-function createRainbowGradient(text, progress) {
-    // Генерация градиента, применяемого ко всему тексту
-    const gradientText = `<span style="background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
-                            background-clip: text; -webkit-background-clip: text; color: transparent;
-                            background-size: 200%; background-position: ${progress * 100}%;">
-                            ${text}
-                          </span>`;
-    return gradientText;
-}
-
-
-/***/ }),
-
-/***/ "./src/scrollingText.ts":
+/***/ "./src/MatrixElement.ts":
 /*!******************************!*\
-  !*** ./src/scrollingText.ts ***!
+  !*** ./src/MatrixElement.ts ***!
   \******************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ScrollingText: () => (/* binding */ ScrollingText)
+/* harmony export */   MatrixElement: () => (/* binding */ MatrixElement)
 /* harmony export */ });
-class ScrollingText {
-    constructor(text, resolutionX, speed, startTime) {
-        this.text = text;
-        this.startTime = startTime;
-        this.resolutionX = resolutionX;
-        this.speed = speed;
-        this.position = resolutionX; // Начальная позиция текста
+class MatrixElement {
+    constructor(content, x, y, width, height) {
+        this.content = content;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.modifiers = [];
+        this.textStyle = {};
+        this.textWidth = this.calculateTextWidth();
     }
-    // Обновление позиции с учётом времени
-    updatePosition(currentTime) {
-        // Получаем реальную ширину текста из DOM-элемента
-        const textElement = document.createElement('span');
-        textElement.style.visibility = 'hidden'; // Скрываем элемент от отображения
-        textElement.style.whiteSpace = 'nowrap'; // Избегаем переноса строки
-        textElement.textContent = this.text;
-        document.body.appendChild(textElement);
-        const textWidth = textElement.offsetWidth;
-        this.position = this.resolutionX - (this.speed * (currentTime - this.startTime));
-        document.body.removeChild(textElement);
-        if (this.position < -textWidth) {
-            this.position = this.resolutionX;
-            this.startTime = currentTime;
+    // Метод для вычисления ширины текста без добавления элемента в DOM
+    calculateTextWidth() {
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.visibility = 'hidden';
+        tempDiv.style.whiteSpace = 'nowrap';
+        tempDiv.style.font = this.textStyle.font || '16px Arial';
+        tempDiv.innerText = this.content;
+        document.body.appendChild(tempDiv);
+        const width = tempDiv.clientWidth;
+        document.body.removeChild(tempDiv);
+        return width;
+    }
+    setText(newText) {
+        this.content = newText;
+        this.textWidth = this.calculateTextWidth();
+    }
+    updateTextStyle(newStyles) {
+        Object.assign(this.textStyle, newStyles);
+        this.textWidth = this.calculateTextWidth();
+    }
+    setTextUpdateCallback(callback) {
+        this.textUpdateCallback = callback;
+    }
+    applyModifiers(timestamp) {
+        if (this.textUpdateCallback) {
+            const newText = this.textUpdateCallback(timestamp);
+            this.setText(newText);
+        }
+        for (const modifier of this.modifiers) {
+            modifier.apply(timestamp);
         }
     }
-    // Установка нового текста
-    setText(newText) {
-        this.text = newText;
+    addModifier(modifier) {
+        this.modifiers.push(modifier);
     }
-    // Получение текущей позиции
-    getPosition() {
-        return this.position;
+    // Метод для рендеринга элемента в указанный контейнер
+    renderTo(container) {
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.left = `${Math.floor(this.x)}px`;
+        div.style.top = `${Math.floor(this.y)}px`;
+        div.style.width = `${this.width}px`;
+        div.style.height = `${this.height}px`;
+        div.style.overflow = 'hidden';
+        Object.assign(div.style, this.textStyle); // Применяем стили
+        if (typeof this.content === 'string') {
+            div.innerText = this.content;
+        }
+        else if (this.content instanceof HTMLImageElement || this.content instanceof SVGElement) {
+            div.appendChild(this.content);
+        }
+        container.appendChild(div);
     }
-    // Получение текущего текста
-    getText() {
-        return this.text;
+}
+
+
+/***/ }),
+
+/***/ "./src/Modifiers.ts":
+/*!**************************!*\
+  !*** ./src/Modifiers.ts ***!
+  \**************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   DynamicModifier: () => (/* binding */ DynamicModifier),
+/* harmony export */   RainbowEffectModifier: () => (/* binding */ RainbowEffectModifier),
+/* harmony export */   RotationModifier: () => (/* binding */ RotationModifier),
+/* harmony export */   ScrollingTextModifier: () => (/* binding */ ScrollingTextModifier)
+/* harmony export */ });
+class DynamicModifier {
+    constructor(element) {
+        this.element = element;
+    }
+}
+class RotationModifier extends DynamicModifier {
+    constructor(element, angle) {
+        super(element);
+        this.angle = angle;
+    }
+    apply(timestamp) {
+        // Здесь можно применить вращение для расчетов, если это имеет смысл
+        const rotation = this.angle * (timestamp / 1000);
+        // Например, мы можем сохранить угол вращения или другую информацию в элементе
+        // Но это будет чисто для логики, не для прямого рендеринга в DOM
+    }
+}
+class RainbowEffectModifier extends DynamicModifier {
+    constructor(element, period) {
+        super(element);
+        this.period = period;
+    }
+    apply(timestamp) {
+        const phase = (timestamp % this.period) / this.period;
+        const hue = Math.floor(phase * 360);
+        this.element.updateTextStyle({ color: `hsl(${hue}, 100%, 50%)` });
+    }
+}
+class ScrollingTextModifier extends DynamicModifier {
+    constructor(element, speedPixelsPerSecond) {
+        super(element);
+        this.speedPixelsPerSecond = speedPixelsPerSecond;
+        this.previousTime = undefined;
+    }
+    apply(timestamp) {
+        if (!this.previousTime) {
+            this.previousTime = timestamp;
+            this.element.x = this.element.width;
+            return;
+        }
+        this.element.x -= this.speedPixelsPerSecond * (timestamp - this.previousTime) / 1000;
+        this.previousTime = timestamp;
+        if (this.element.x + this.element.textWidth < 0) {
+            this.element.x = this.element.width;
+        }
     }
 }
 
@@ -180,94 +292,56 @@ var __webpack_exports__ = {};
   !*** ./src/index.ts ***!
   \**********************/
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _ledMatrixRenderer__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ledMatrixRenderer */ "./src/ledMatrixRenderer.ts");
-/* harmony import */ var _scrollingText__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./scrollingText */ "./src/scrollingText.ts");
-/* harmony import */ var _rainbow__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./rainbow */ "./src/rainbow.ts");
+/* harmony import */ var _Matrix__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Matrix */ "./src/Matrix.ts");
+/* harmony import */ var _MatrixElement__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./MatrixElement */ "./src/MatrixElement.ts");
+/* harmony import */ var _Modifiers__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./Modifiers */ "./src/Modifiers.ts");
 
 
 
-class AnimationFrameGenerator {
-    constructor(containerId, width, height, framesPerSecond, frameCount, speed, startTime, wsUrl) {
-        this.container = document.getElementById(containerId);
-        this.width = width;
-        this.height = height;
-        this.startTime = startTime;
-        this.framesPerSecond = framesPerSecond;
-        this.frameCount = frameCount;
-        this.speed = speed / 1000;
-        this.generatedGroups = 0;
-        this.scrollingText = new _scrollingText__WEBPACK_IMPORTED_MODULE_1__.ScrollingText("", width, this.speed, startTime);
-        this.matrix = new _ledMatrixRenderer__WEBPACK_IMPORTED_MODULE_0__.LEDMatrix(containerId, width, height * frameCount, frameCount);
-        this.ws = new WebSocket(wsUrl);
-        this.ws.onopen = () => {
-            console.log('WebSocket connected');
-        };
-        this.ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                if (message.command === 'generateNextGroup') {
-                    this.generateAndSendNextGroup();
-                }
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('matrix-container');
+    if (!container) {
+        console.error('Container not found!');
+        return;
+    }
+    // Создание элементов матрицы
+    const textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("Running text 1", 0, 0, 128, 20);
+    textElement1.updateTextStyle({
+        fontSize: '12px',
+        color: 'lime',
+        fontWeight: 'bold'
+    });
+    const textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("Running text 2", 0, 30, 128, 20);
+    textElement2.updateTextStyle({
+        fontSize: '12px',
+        color: 'red',
+        fontWeight: 'bold'
+    });
+    // Добавление модификаторов к элементам
+    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 50);
+    textElement1.addModifier(scrollingModifier1);
+    const rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
+    textElement1.addModifier(rainbowModifier1);
+    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 40);
+    textElement2.addModifier(scrollingModifier2);
+    const rainbowModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
+    textElement2.addModifier(rainbowModifier2);
+    // Создание и отображение группы кадров с несколькими элементами
+    const matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    // setInterval(()=>matrix.generateNextGroup(container, [textElement1, textElement2]), 1000);
+    let ws = new WebSocket('ws://localhost:8081');
+    ws.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            if (message.command === 'generateNextGroup') {
+                let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2]);
+                ws.send(JSON.stringify({ frameGroup }));
             }
-            catch (e) {
-            }
-        };
-        this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-        this.ws.onclose = () => {
-            console.log('WebSocket disconnected');
-        };
-    }
-    clearDOM() {
-        while (this.container.firstChild) {
-            this.container.removeChild(this.container.firstChild);
         }
-    }
-    generateTimeStrings() {
-        const timeStrings = [];
-        const frameInterval = 1000 / this.framesPerSecond;
-        let time = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
-        for (let i = 0; i < this.frameCount; i++) {
-            const date = new Date(time + i * frameInterval);
-            const timeString = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}.${String(date.getMilliseconds()).padStart(3, '0')}`;
-            timeStrings.push(timeString);
+        catch (e) {
         }
-        return timeStrings;
-    }
-    generateNextGroup() {
-        this.clearDOM();
-        const textArray = this.generateTimeStrings();
-        const frameInterval = 1000 / this.framesPerSecond;
-        let groupStartTime = this.startTime + this.generatedGroups * this.frameCount * frameInterval;
-        const framePositions = [];
-        for (let i = 0; i < this.frameCount; i++) {
-            const currentTime = groupStartTime + i * frameInterval;
-            this.scrollingText.setText(textArray[i]);
-            this.scrollingText.updatePosition(currentTime);
-            const rainbowPeriod = 2000;
-            const progress = ((currentTime - this.startTime) % rainbowPeriod) / rainbowPeriod;
-            const gradientText = (0,_rainbow__WEBPACK_IMPORTED_MODULE_2__.createRainbowGradient)(this.scrollingText.getText(), progress);
-            this.matrix.renderFrame(gradientText, this.scrollingText.getPosition(), i * this.height);
-            framePositions.push(this.scrollingText.getPosition());
-        }
-        this.generatedGroups += 1;
-        return {
-            startTime: groupStartTime,
-            frameInterval: frameInterval,
-            frameCount: this.frameCount,
-            speed: this.speed,
-            framePositions: framePositions,
-            totalHeight: this.height * this.frameCount
-        };
-    }
-    generateAndSendNextGroup() {
-        const frameGroup = this.generateNextGroup();
-        this.ws.send(JSON.stringify({ frameGroup }));
-    }
-}
-// Пример использования
-const animationGenerator = new AnimationFrameGenerator('animation-container', 96, 32, 50, 20, 25, Date.now(), 'ws://localhost:8081');
+    };
+});
 
 /******/ })()
 ;

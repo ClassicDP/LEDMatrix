@@ -7,7 +7,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import fs from 'fs';
 import path from 'path';
 import { webkit } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -21,12 +20,6 @@ let page;
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Clear browser cache directory (example path, adjust as needed)
-const cacheDir = path.resolve(__dirname, 'path_to_browser_cache');
-if (fs.existsSync(cacheDir)) {
-    fs.rmSync(cacheDir, { recursive: true, force: true });
-    console.log('Browser cache cleared');
-}
 wss.on('connection', (ws) => {
     clients.push(ws);
     console.log('Client connected');
@@ -60,14 +53,13 @@ wss.on('connection', (ws) => {
 });
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const browser = yield webkit.launch();
-    const context = yield browser.newContext({
-        extraHTTPHeaders: {
-            'Cache-Control': 'no-store', // Disable caching
-        },
-    });
+    const context = yield browser.newContext();
+    // Очистка кэша и куки
+    yield context.clearCookies();
+    console.log('Browser cache and cookies cleared');
     page = yield context.newPage();
-    const filePath = path.join(__dirname, '../../../src/client/dist/index.html');
-    yield page.goto(`file://${filePath}`, { waitUntil: 'networkidle' });
+    const filePath = path.join(__dirname, '../../../src/render/dist/index.html');
+    yield page.goto(`file://${filePath}`, { waitUntil: 'load' });
     console.log('Browser and page loaded');
     page.on('console', (msg) => __awaiter(void 0, void 0, void 0, function* () {
         const msgArgs = msg.args();
@@ -84,9 +76,9 @@ function captureAndSendScreenshot(frameGroup) {
         try {
             const { totalHeight, frameCount } = frameGroup;
             yield page.evaluate((totalHeight) => {
-                document.getElementById('animation-container').style.height = `${totalHeight}px`;
+                document.getElementById('matrix-container').style.height = `${totalHeight}px`;
             }, totalHeight);
-            const elementHandle = yield page.waitForSelector('#animation-container', { state: 'visible' });
+            const elementHandle = yield page.waitForSelector('#matrix-container', { state: 'visible' });
             const boundingBox = yield elementHandle.boundingBox();
             const screenshotBuffer = yield page.screenshot({
                 clip: boundingBox,

@@ -1,4 +1,5 @@
-import { MatrixElement } from "./MatrixElement";
+import {MatrixElement} from "./MatrixElement";
+import {FrameGroup} from "./FrameGroup";
 
 export class Matrix {
     width: number;
@@ -17,7 +18,7 @@ export class Matrix {
         this.lastEndTime = startTime;
     }
 
-    generateNextGroup(container: HTMLElement, matrixElement: MatrixElement): void {
+    generateNextGroup(container: HTMLElement, matrixElements: MatrixElement[]): FrameGroup {
         // Очищаем контейнер от всех элементов, чтобы избежать артефактов
         container.innerHTML = '';
 
@@ -25,8 +26,7 @@ export class Matrix {
         const frameCount = this.framesPerGroup;
 
         const startTime = this.lastEndTime;
-        const endTime = startTime + frameInterval * frameCount;
-        this.lastEndTime = endTime;
+        this.lastEndTime = startTime + frameInterval * frameCount;
 
         const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
 
@@ -35,15 +35,15 @@ export class Matrix {
             const frame = document.createElement('div');
             frame.style.position = 'absolute';
             frame.style.width = `${this.width}px`;
-            frame.style.height = `${matrixElement.height}px`;
+            frame.style.height = `${this.height}px`;
             frame.style.overflow = 'hidden'; // Скрываем текст за пределами блока
-            frame.style.top = `${i * matrixElement.height}px`; // Располагаем один блок под другим
+            frame.style.top = `${i * this.height}px`; // Располагаем один блок под другим
 
-            // Применяем модификаторы к элементу на основе текущего таймштампа кадра
-            matrixElement.applyModifiers(framePositions[i]);
-
-            // Рендерим элемент в текущий фрейм
-            matrixElement.renderTo(frame);
+            // Применяем модификаторы и рендерим каждый элемент матрицы
+            for (const matrixElement of matrixElements) {
+                matrixElement.applyModifiers(framePositions[i]);
+                matrixElement.renderTo(frame);
+            }
 
             // Вставляем содержимое в контейнер кадра
             container.appendChild(frame);
@@ -56,5 +56,7 @@ export class Matrix {
                 el.remove();
             }
         });
+        const totalHeight = this.height * frameCount;
+        return new FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
     }
 }
