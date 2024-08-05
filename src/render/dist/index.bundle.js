@@ -48,6 +48,10 @@ class Matrix {
         this.startTime = startTime;
         this.lastEndTime = startTime;
     }
+    setStartTime(newStartTime) {
+        this.startTime = newStartTime;
+        this.lastEndTime = newStartTime;
+    }
     generateNextGroup(container, matrixElements) {
         const existingFrames = Array.from(container.children);
         const frameInterval = 1000 / this.framesPerSecond;
@@ -361,6 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (message.command === 'generateNextGroup') {
                     let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
                     ws.send(JSON.stringify({ frameGroup }));
+                }
+                if (message.command === 'setStartTime') {
+                    matrix.setStartTime(message.value);
                 }
             }
             catch (e) {

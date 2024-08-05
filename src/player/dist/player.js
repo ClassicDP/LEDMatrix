@@ -16,7 +16,7 @@ const fpsSpan = document.getElementById('fps');
 let width;
 let height;
 const frameBuffer = [];
-const bufferLimit = 100;
+const bufferLimit = 500;
 let frameCount = 0;
 let lastFTime = 0;
 const wait = (ms) => __awaiter(void 0, void 0, void 0, function* () {

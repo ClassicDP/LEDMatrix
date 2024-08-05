@@ -8,6 +8,10 @@ export class Matrix {
         this.startTime = startTime;
         this.lastEndTime = startTime;
     }
+    setStartTime(newStartTime) {
+        this.startTime = newStartTime;
+        this.lastEndTime = newStartTime;
+    }
     generateNextGroup(container, matrixElements) {
         const existingFrames = Array.from(container.children);
         const frameInterval = 1000 / this.framesPerSecond;

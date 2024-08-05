@@ -8,7 +8,7 @@ let width: number;
 let height: number;
 
 const frameBuffer: any[] = [];
-const bufferLimit = 100;
+const bufferLimit = 500;
 
 let frameCount = 0;
 let lastFTime = 0;

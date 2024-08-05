@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Capture Example</title>
+</head>
+<body>
+<h1>Screen Capture API Example</h1>
+<button id="startCapture">Start Screen Capture</button>
+<button id="stopCapture">Stop Screen Capture</button>
+<br><br>
+<video id="video" autoplay style="border: 1px solid black; width: 80%;"></video>
+
+<script>
+    const startCaptureButton = document.getElementById('startCapture');
+    const stopCaptureButton = document.getElementById('stopCapture');
+    const videoElement = document.getElementById('video');
+    let captureStream = null;
+
+    startCaptureButton.addEventListener('click', async () => {
+        try {
+            captureStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true
+            });
+            videoElement.srcObject = captureStream;
+        } catch (err) {
+            console.error("Error: " + err);
+        }
+    });
+
+    stopCaptureButton.addEventListener('click', () => {
+        if (captureStream) {
+            let tracks = captureStream.getTracks();
+            tracks.forEach(track => track.stop());
+            videoElement.srcObject = null;
+        }
+    });
+</script>
+</body>
+</html>

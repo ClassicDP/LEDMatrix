@@ -58,6 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
                     ws.send(JSON.stringify({ frameGroup }));
                 }
+                if (message.command === 'setStartTime') {
+                    matrix.setStartTime(message.value);
+                }
             }
             catch (e) {
                 console.error('Error processing message:', e);

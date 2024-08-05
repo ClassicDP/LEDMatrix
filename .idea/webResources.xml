@@ -9,6 +9,7 @@
             <path value="file://$PROJECT_DIR$/src/player" />
             <path value="file://$PROJECT_DIR$/src/server" />
             <path value="file://$PROJECT_DIR$" />
+            <path value="file://$PROJECT_DIR$/src/selenium" />
           </resourceRoots>
         </entryData>
       </entry>
