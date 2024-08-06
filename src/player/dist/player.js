@@ -46,6 +46,7 @@ ws.onmessage = (event) => {
 let fps = 0;
 function displayFrame() {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         if (frameBuffer.length > 0) {
             const frame = frameBuffer.shift();
             const frameTime = frame.timeStamp;
@@ -84,7 +85,12 @@ function displayFrame() {
                 timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
             };
         }
-        requestAnimationFrame(displayFrame);
+        if (Number.parseInt((_a = deltaSpan.textContent) !== null && _a !== void 0 ? _a : '0') < 10) {
+            requestAnimationFrame(displayFrame);
+        }
+        else {
+            setTimeout(() => displayFrame(), 0);
+        }
     });
 }
 setInterval(() => {

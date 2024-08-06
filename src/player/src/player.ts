@@ -108,7 +108,11 @@ async function displayFrame() {
             timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
         };
     }
-    requestAnimationFrame(displayFrame);
+    if (Number.parseInt(deltaSpan.textContent ?? '0') < 10) {
+        requestAnimationFrame(displayFrame);
+    } else {
+        setTimeout(()=>displayFrame(), 0)
+    }
 }
 
 setInterval(() => {
