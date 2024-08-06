@@ -12,7 +12,33 @@ import { webkit } from 'playwright';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
-import sharp from 'sharp';
+class Mutex {
+    constructor() {
+        this._queue = [];
+        this._lock = false;
+    }
+    lock() {
+        return new Promise((res) => {
+            if (!this._lock) {
+                this._lock = true;
+                res();
+            }
+            else {
+                this._queue.push(res);
+            }
+        });
+    }
+    unlock() {
+        if (this._queue.length > 0) {
+            const func = this._queue.shift();
+            if (func)
+                func();
+        }
+        else {
+            this._lock = false;
+        }
+    }
+}
 const server = http.createServer();
 const wss = new WebSocketServer({ server });
 let clients = [];
@@ -20,6 +46,7 @@ let page = null;
 let browser;
 let context;
 let lastTime;
+const mutex = new Mutex();
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,10 +68,14 @@ wss.on('connection', (ws) => {
             const frameGroup = request.frameGroup;
             // Устанавливаем размер окна просмотра
             if (page) {
+                yield mutex.lock();
                 yield page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
                 lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
+                const startScreenshotTime = Date.now();
                 yield captureAndSendScreenshot(frameGroup);
-                let deltaT = frameGroup.startTime - Date.now() - 3000;
+                const endScreenshotTime = Date.now();
+                mutex.unlock();
+                let deltaT = frameGroup.startTime - Date.now() - 1000;
                 const delay = Math.max(0, deltaT);
                 setTimeout(() => {
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -63,18 +94,11 @@ wss.on('connection', (ws) => {
     });
 });
 (() => __awaiter(void 0, void 0, void 0, function* () {
+    yield mutex.lock();
     browser = yield webkit.launch();
     context = yield browser.newContext();
-    yield createNewPage(); // Инициализируем первую страницу
-    setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
-        console.log('Restarting page to avoid memory leaks...');
-        if (page) {
-            console.log('Closing current page...');
-            yield page.close();
-            console.log('Page closed');
-        }
-        yield createNewPage();
-    }), 30000); // Перезапуск страницы каждые 30 секунд
+    yield createNewPage();
+    mutex.unlock();
 }))();
 function createNewPage() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -96,7 +120,7 @@ function captureAndSendScreenshot(frameGroup) {
         const delayBetweenRetries = 10; // Задержка между попытками в мс
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const { totalHeight, frameCount } = frameGroup;
+                const { totalHeight, frameCount, width } = frameGroup;
                 if (page) {
                     yield page.evaluate((totalHeight) => {
                         const container = document.getElementById('matrix-container');
@@ -110,27 +134,20 @@ function captureAndSendScreenshot(frameGroup) {
                         clip: boundingBox,
                         timeout: 100,
                     });
-                    const imageBuffer = Buffer.from(screenshotBuffer);
-                    const frameHeight = Math.floor(totalHeight / frameCount);
-                    const frames = [];
-                    for (let i = 0; i < frameCount; i++) {
-                        const yPosition = i * frameHeight;
-                        const croppedBuffer = yield sharp(imageBuffer)
-                            .extract({ width: boundingBox.width, height: frameHeight, left: 0, top: yPosition })
-                            .toBuffer();
-                        frames.push({
-                            timeStamp: frameGroup.startTime + i * frameGroup.frameInterval,
-                            imageBuffer: croppedBuffer.toString('base64'),
-                        });
-                    }
-                    frames.forEach((frame) => {
-                        clients.forEach((client) => {
-                            if (client.readyState === WebSocket.OPEN) {
-                                client.send(JSON.stringify(frame));
-                            }
-                        });
+                    // Отправляем изображение и параметры для нарезки на клиенте
+                    const frameData = {
+                        startTime: frameGroup.startTime,
+                        frameInterval: frameGroup.frameInterval,
+                        frameCount: frameGroup.frameCount,
+                        totalHeight: frameGroup.totalHeight,
+                        width: frameGroup.width,
+                        imageBuffer: screenshotBuffer.toString('base64')
+                    };
+                    clients.forEach((client) => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify(frameData));
+                        }
                     });
-                    console.log('Screenshot captured successfully');
                     return; // Если скриншот успешно создан, выходим из функции
                 }
                 else {

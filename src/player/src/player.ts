@@ -1,3 +1,17 @@
+interface Frame {
+    timeStamp: number;
+    imageBuffer: string;
+}
+
+interface FrameGroup {
+    startTime: number;
+    frameInterval: number;
+    frameCount: number;
+    totalHeight: number;
+    width: number;
+    imageBuffer: string;
+}
+
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 const timestampSpan = document.getElementById('timestamp') as HTMLSpanElement;
@@ -7,7 +21,7 @@ const fpsSpan = document.getElementById('fps') as HTMLSpanElement;
 let width: number;
 let height: number;
 
-const frameBuffer: any[] = [];
+const frameBuffer: Frame[] = [];
 const bufferLimit = 500;
 
 let frameCount = 0;
@@ -17,18 +31,28 @@ const wait = async (ms: number) => {
     return new Promise(res => setTimeout(res, ms));
 }
 
-const ws = new WebSocket('ws://192.168.1.85:8081');
+// Создаем Web Worker
+const worker = new Worker('imageWorker.js');
 
-ws.onmessage = (event) => {
-    const frame = JSON.parse(event.data);
-
-    if (frame.timeStamp) {
-        // Добавляем кадр в буфер
+worker.onmessage = (event) => {
+    const frames: Frame[] = event.data;
+    frames.forEach((frame) => {
         frameBuffer.push(frame);
         if (frameBuffer.length > bufferLimit) {
             frameBuffer.shift();
         }
         frameCount++;
+    });
+};
+
+// const ws = new WebSocket('ws://localhost:8081');
+const ws = new WebSocket('ws://192.168.1.85:8081');
+ws.onmessage = (event) => {
+    const frameGroup: FrameGroup = JSON.parse(event.data);
+
+    if (frameGroup.imageBuffer) {
+        // Передаем данные на нарезку в Worker
+        worker.postMessage(frameGroup);
     }
 };
 
@@ -36,8 +60,8 @@ let fps = 0;
 
 async function displayFrame() {
     if (frameBuffer.length > 0) {
-        const frame = frameBuffer.shift();
-        const frameTime = new Date(frame.timeStamp).getTime();
+        const frame = frameBuffer.shift()!;
+        const frameTime = frame.timeStamp;
         const currentTime = Date.now();
         const timeToWait = frameTime - currentTime;
 
@@ -79,7 +103,7 @@ async function displayFrame() {
             // Теперь рисуем сетку поверх изображения
             drawPixelGrid(scale);
 
-            deltaSpan.textContent = `${Date.now() - frameTime} ms` + " buff: " + frameBuffer.length + " delta frame: " + (lastFTime - frameTime).toString();
+            deltaSpan.textContent = `${(Date.now() - frameTime) >> 0} ms` + " buff: " + frameBuffer.length + " delta frame: " + ((lastFTime - frameTime) >> 0).toString();
             lastFTime = frameTime;
             timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
         };

@@ -1,5 +1,6 @@
 export class MatrixElement {
-    constructor(content, x, y, width, height) {
+    constructor(matrix, content, x, y, width, height) {
+        this.id = matrix.generateElementId();
         this.content = content;
         this.x = x;
         this.y = y;
@@ -45,23 +46,30 @@ export class MatrixElement {
     addModifier(modifier) {
         this.modifiers.push(modifier);
     }
-    // Метод для рендеринга элемента в указанный контейнер
     renderTo(container) {
-        const div = document.createElement('div');
+        // Ищем существующий элемент в контейнере по id
+        let div = container.querySelector(`#${this.id}`);
+        if (!div) {
+            // Если элемент не найден, создаем новый
+            div = document.createElement('div');
+            div.id = this.id;
+            container.appendChild(div);
+        }
+        // Обновляем свойства элемента
         div.style.position = 'absolute';
         div.style.left = `${Math.floor(this.x + 0.0001)}px`;
         div.style.top = `${Math.floor(this.y + 0.0001)}px`;
         div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
-        Object.assign(div.style, this.textStyle); // Применяем стили
+        Object.assign(div.style, this.textStyle);
         if (typeof this.content === 'string') {
             div.innerText = this.content;
         }
         else if (this.content instanceof HTMLImageElement || this.content instanceof SVGElement) {
+            div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
-        container.appendChild(div);
     }
 }
 //# sourceMappingURL=MatrixElement.js.map

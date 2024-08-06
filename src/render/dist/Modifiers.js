@@ -1,6 +1,7 @@
 export class DynamicModifier {
-    constructor(element) {
+    constructor(element, framesPerSecond) {
         this.element = element;
+        this.framesPerSecond = framesPerSecond;
     }
 }
 export class RotationModifier extends DynamicModifier {
@@ -27,8 +28,8 @@ export class RainbowEffectModifier extends DynamicModifier {
     }
 }
 export class ScrollingTextModifier extends DynamicModifier {
-    constructor(element, speedPixelsPerSecond) {
-        super(element);
+    constructor(element, speedPixelsPerSecond, framesPerSecond) {
+        super(element, framesPerSecond);
         this.speedPixelsPerSecond = speedPixelsPerSecond;
         this.previousTime = undefined;
     }

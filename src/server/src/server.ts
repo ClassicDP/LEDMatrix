@@ -3,21 +3,39 @@ import { Page, webkit, Browser, BrowserContext } from 'playwright';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
-import sharp from 'sharp';
 
-interface Frame {
-    timeStamp: number;
-    imageBuffer: string;
+class Mutex {
+    private _queue: (() => void)[] = [];
+    private _lock = false;
+
+    lock(): Promise<void> {
+        return new Promise((res) => {
+            if (!this._lock) {
+                this._lock = true;
+                res();
+            } else {
+                this._queue.push(res);
+            }
+        });
+    }
+
+    unlock() {
+        if (this._queue.length > 0) {
+            const func = this._queue.shift();
+            if (func) func();
+        } else {
+            this._lock = false;
+        }
+    }
 }
 
 interface FrameGroup {
     startTime: number;
     frameInterval: number;
     frameCount: number;
-    speed: number;
-    framePositions: number[];
     totalHeight: number;
     width: number;
+    imageBuffer: string;
 }
 
 const server = http.createServer();
@@ -26,7 +44,8 @@ let clients: WebSocket[] = [];
 let page: Page | null = null;
 let browser: Browser;
 let context: BrowserContext;
-let lastTime : number | undefined;
+let lastTime: number | undefined;
+const mutex = new Mutex();
 
 // __dirname equivalent setup for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -39,7 +58,7 @@ wss.on('connection', (ws: WebSocket) => {
     clients.push(ws);
     console.log(`Client connected: ${clientId}`);
     if (lastTime)
-        ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }))
+        ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
 
     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
 
@@ -52,16 +71,21 @@ wss.on('connection', (ws: WebSocket) => {
         const request = JSON.parse(message);
 
         if (request.frameGroup) {
-            const frameGroup: FrameGroup = request.frameGroup;
+            const frameGroup = request.frameGroup;
 
             // Устанавливаем размер окна просмотра
             if (page) {
+                await mutex.lock();
                 await page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
-                lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount
+                lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
 
+                const startScreenshotTime = Date.now();
                 await captureAndSendScreenshot(frameGroup);
+                const endScreenshotTime = Date.now();
 
-                let deltaT = frameGroup.startTime - Date.now() - 3000;
+                mutex.unlock();
+
+                let deltaT = frameGroup.startTime - Date.now() - 1000;
                 const delay = Math.max(0, deltaT);
                 setTimeout(() => {
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -80,20 +104,11 @@ wss.on('connection', (ws: WebSocket) => {
 });
 
 (async () => {
+    await mutex.lock();
     browser = await webkit.launch();
     context = await browser.newContext();
-
-    await createNewPage(); // Инициализируем первую страницу
-
-    setInterval(async () => {
-        console.log('Restarting page to avoid memory leaks...');
-        if (page) {
-            console.log('Closing current page...');
-            await page.close();
-            console.log('Page closed');
-        }
-        await createNewPage();
-    }, 30000); // Перезапуск страницы каждые 30 секунд
+    await createNewPage();
+    mutex.unlock();
 })();
 
 async function createNewPage() {
@@ -116,7 +131,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const {totalHeight, frameCount} = frameGroup;
+            const { totalHeight, frameCount, width } = frameGroup;
 
             if (page) {
                 await page.evaluate((totalHeight: any) => {
@@ -126,7 +141,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
                     }
                 }, totalHeight);
 
-                const elementHandle = await page.waitForSelector('#matrix-container', {state: 'visible'});
+                const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
                 const boundingBox = await elementHandle.boundingBox();
 
                 const screenshotBuffer = await page.screenshot({
@@ -134,33 +149,22 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
                     timeout: 100,
                 });
 
-                const imageBuffer = Buffer.from(screenshotBuffer);
+                // Отправляем изображение и параметры для нарезки на клиенте
+                const frameData: FrameGroup = {
+                    startTime: frameGroup.startTime,
+                    frameInterval: frameGroup.frameInterval,
+                    frameCount: frameGroup.frameCount,
+                    totalHeight: frameGroup.totalHeight,
+                    width: frameGroup.width,
+                    imageBuffer: screenshotBuffer.toString('base64')
+                };
 
-                const frameHeight = Math.floor(totalHeight / frameCount);
-                const frames: Frame[] = [];
-
-                for (let i = 0; i < frameCount; i++) {
-                    const yPosition = i * frameHeight;
-
-                    const croppedBuffer = await sharp(imageBuffer)
-                        .extract({width: boundingBox!.width, height: frameHeight, left: 0, top: yPosition})
-                        .toBuffer();
-
-                    frames.push({
-                        timeStamp: frameGroup.startTime + i * frameGroup.frameInterval,
-                        imageBuffer: croppedBuffer.toString('base64'),
-                    });
-                }
-
-                frames.forEach((frame) => {
-                    clients.forEach((client) => {
-                        if (client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify(frame));
-                        }
-                    });
+                clients.forEach((client) => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify(frameData));
+                    }
                 });
 
-                console.log('Screenshot captured successfully');
                 return; // Если скриншот успешно создан, выходим из функции
             } else {
                 console.error('Page is not available');

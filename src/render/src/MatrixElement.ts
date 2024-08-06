@@ -1,6 +1,8 @@
 import {DynamicModifier} from "./Modifiers";
+import {Matrix} from "./Matrix";
 
 export class MatrixElement {
+    id: string;
     content: string | HTMLImageElement | SVGElement;
     x: number;
     y: number;
@@ -11,7 +13,8 @@ export class MatrixElement {
     textUpdateCallback?: (timestamp: number) => string;
     textStyle: Partial<CSSStyleDeclaration>;
 
-    constructor(content: string | HTMLImageElement | SVGElement, x: number, y: number, width: number, height: number) {
+    constructor(matrix: Matrix, content: string | HTMLImageElement | SVGElement, x: number, y: number, width: number, height: number) {
+        this.id = matrix.generateElementId();
         this.content = content;
         this.x = x;
         this.y = y;
@@ -65,9 +68,18 @@ export class MatrixElement {
         this.modifiers.push(modifier);
     }
 
-    // Метод для рендеринга элемента в указанный контейнер
     renderTo(container: HTMLElement) {
-        const div = document.createElement('div');
+        // Ищем существующий элемент в контейнере по id
+        let div = container.querySelector(`#${this.id}`) as HTMLElement;
+
+        if (!div) {
+            // Если элемент не найден, создаем новый
+            div = document.createElement('div');
+            div.id = this.id;
+            container.appendChild(div);
+        }
+
+        // Обновляем свойства элемента
         div.style.position = 'absolute';
         div.style.left = `${Math.floor(this.x + 0.0001)}px`;
         div.style.top = `${Math.floor(this.y + 0.0001)}px`;
@@ -75,14 +87,13 @@ export class MatrixElement {
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
 
-        Object.assign(div.style, this.textStyle); // Применяем стили
+        Object.assign(div.style, this.textStyle);
 
         if (typeof this.content === 'string') {
             div.innerText = this.content;
         } else if (this.content instanceof HTMLImageElement || this.content instanceof SVGElement) {
+            div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
-
-        container.appendChild(div);
     }
 }

@@ -27,6 +27,7 @@
     "webpack-dev-server": "^5.0.4"
   },
   "dependencies": {
+    "canvas": "^2.11.2",
     "chrome-remote-interface": "^0.33.2",
     "puppeteer": "^22.15.0",
     "selenium-webdriver": "^4.23.0",

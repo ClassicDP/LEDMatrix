@@ -41,12 +41,16 @@ __webpack_require__.r(__webpack_exports__);
 
 class Matrix {
     constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
+        this.elementIdCounter = 0;
         this.width = width;
         this.height = height;
         this.framesPerSecond = framesPerSecond;
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+    }
+    generateElementId() {
+        return `element-${this.elementIdCounter++}`;
     }
     setStartTime(newStartTime) {
         this.startTime = newStartTime;
@@ -109,7 +113,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   MatrixElement: () => (/* binding */ MatrixElement)
 /* harmony export */ });
 class MatrixElement {
-    constructor(content, x, y, width, height) {
+    constructor(matrix, content, x, y, width, height) {
+        this.id = matrix.generateElementId();
         this.content = content;
         this.x = x;
         this.y = y;
@@ -155,23 +160,30 @@ class MatrixElement {
     addModifier(modifier) {
         this.modifiers.push(modifier);
     }
-    // Метод для рендеринга элемента в указанный контейнер
     renderTo(container) {
-        const div = document.createElement('div');
+        // Ищем существующий элемент в контейнере по id
+        let div = container.querySelector(`#${this.id}`);
+        if (!div) {
+            // Если элемент не найден, создаем новый
+            div = document.createElement('div');
+            div.id = this.id;
+            container.appendChild(div);
+        }
+        // Обновляем свойства элемента
         div.style.position = 'absolute';
         div.style.left = `${Math.floor(this.x + 0.0001)}px`;
         div.style.top = `${Math.floor(this.y + 0.0001)}px`;
         div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
-        Object.assign(div.style, this.textStyle); // Применяем стили
+        Object.assign(div.style, this.textStyle);
         if (typeof this.content === 'string') {
             div.innerText = this.content;
         }
         else if (this.content instanceof HTMLImageElement || this.content instanceof SVGElement) {
+            div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
-        container.appendChild(div);
     }
 }
 
@@ -192,8 +204,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ScrollingTextModifier: () => (/* binding */ ScrollingTextModifier)
 /* harmony export */ });
 class DynamicModifier {
-    constructor(element) {
+    constructor(element, framesPerSecond) {
         this.element = element;
+        this.framesPerSecond = framesPerSecond;
     }
 }
 class RotationModifier extends DynamicModifier {
@@ -220,8 +233,8 @@ class RainbowEffectModifier extends DynamicModifier {
     }
 }
 class ScrollingTextModifier extends DynamicModifier {
-    constructor(element, speedPixelsPerSecond) {
-        super(element);
+    constructor(element, speedPixelsPerSecond, framesPerSecond) {
+        super(element, framesPerSecond);
         this.speedPixelsPerSecond = speedPixelsPerSecond;
         this.previousTime = undefined;
     }
@@ -310,6 +323,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 let ws = null;
+let textElement1;
+let textElement2;
+let timeElement;
+let matrix;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
     const container = document.getElementById('matrix-container');
@@ -317,43 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Container not found!');
         return;
     }
-    // Создание элементов матрицы
-    const textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("Running text 1", 0, 0, 128, 20);
-    textElement1.updateTextStyle({
-        fontSize: '12px',
-        color: 'lime',
-        fontWeight: 'bold'
-    });
-    const textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("Running text 2", 0, 30, 128, 20);
-    textElement2.updateTextStyle({
-        fontSize: '12px',
-        color: 'red',
-        fontWeight: 'bold'
-    });
-    // Создание элемента для отображения текущего времени
-    const timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement("", 0, 15, 128, 20); // Центрируем элемент по вертикали
-    timeElement.updateTextStyle({
-        fontSize: '12px',
-        color: 'yellow',
-        fontWeight: 'bold',
-        textAlign: 'center' // Выравнивание текста по центру
-    });
-    // Добавление коллбэка для обновления времени
-    timeElement.setTextUpdateCallback((timestamp) => {
-        const now = new Date(timestamp);
-        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
-    });
-    // Добавление модификаторов к элементам
-    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20);
-    textElement1.addModifier(scrollingModifier1);
-    const rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
-    textElement1.addModifier(rainbowModifier1);
-    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30);
-    textElement2.addModifier(scrollingModifier2);
-    const rainbowModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
-    textElement2.addModifier(rainbowModifier2);
-    // Создание и отображение группы кадров с несколькими элементами
-    const matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 30, 15, Date.now());
+    // Проверка на существование элементов
+    if (!matrix || !textElement1 || !textElement2 || !timeElement) {
+        initializeElements();
+    }
     if (!ws) {
         ws = new WebSocket('ws://localhost:8081');
         ws.onopen = () => {
@@ -362,11 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (message.command === 'generateNextGroup') {
+                if (message.command === 'generateNextGroup' && matrix) {
                     let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
                     ws.send(JSON.stringify({ frameGroup }));
                 }
-                if (message.command === 'setStartTime') {
+                if (message.command === 'setStartTime' && matrix) {
                     matrix.setStartTime(message.value);
                 }
             }
@@ -383,6 +367,42 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+function initializeElements() {
+    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    // Инициализация элементов матрицы
+    textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
+    textElement1.updateTextStyle({
+        fontSize: '12px',
+        color: 'lime',
+        fontWeight: 'bold'
+    });
+    textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
+    textElement2.updateTextStyle({
+        fontSize: '12px',
+        color: 'red',
+        fontWeight: 'bold'
+    });
+    timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "", 0, 15, 128, 20);
+    timeElement.updateTextStyle({
+        fontSize: '12px',
+        color: 'yellow',
+        fontWeight: 'bold',
+        textAlign: 'center'
+    });
+    timeElement.setTextUpdateCallback((timestamp) => {
+        const now = new Date(timestamp);
+        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+    });
+    // Добавление модификаторов к элементам
+    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
+    textElement1.addModifier(scrollingModifier1);
+    const rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
+    textElement1.addModifier(rainbowModifier1);
+    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
+    textElement2.addModifier(scrollingModifier2);
+    const rainbowModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
+    textElement2.addModifier(rainbowModifier2);
+}
 
 /******/ })()
 ;

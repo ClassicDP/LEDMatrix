@@ -22,16 +22,25 @@ let lastFTime = 0;
 const wait = (ms) => __awaiter(void 0, void 0, void 0, function* () {
     return new Promise(res => setTimeout(res, ms));
 });
-const ws = new WebSocket('ws://192.168.1.85:8081');
-ws.onmessage = (event) => {
-    const frame = JSON.parse(event.data);
-    if (frame.timeStamp) {
-        // Добавляем кадр в буфер
+// Создаем Web Worker
+const worker = new Worker('imageWorker.js');
+worker.onmessage = (event) => {
+    const frames = event.data;
+    frames.forEach((frame) => {
         frameBuffer.push(frame);
         if (frameBuffer.length > bufferLimit) {
             frameBuffer.shift();
         }
         frameCount++;
+    });
+};
+// const ws = new WebSocket('ws://localhost:8081');
+const ws = new WebSocket('ws://192.168.1.85:8081');
+ws.onmessage = (event) => {
+    const frameGroup = JSON.parse(event.data);
+    if (frameGroup.imageBuffer) {
+        // Передаем данные на нарезку в Worker
+        worker.postMessage(frameGroup);
     }
 };
 let fps = 0;
@@ -39,7 +48,7 @@ function displayFrame() {
     return __awaiter(this, void 0, void 0, function* () {
         if (frameBuffer.length > 0) {
             const frame = frameBuffer.shift();
-            const frameTime = new Date(frame.timeStamp).getTime();
+            const frameTime = frame.timeStamp;
             const currentTime = Date.now();
             const timeToWait = frameTime - currentTime;
             if (timeToWait > 0) {
@@ -70,7 +79,7 @@ function displayFrame() {
                 ctx.drawImage(image, 0, 0, width * scale, height * scale);
                 // Теперь рисуем сетку поверх изображения
                 drawPixelGrid(scale);
-                deltaSpan.textContent = `${Date.now() - frameTime} ms` + " buff: " + frameBuffer.length + " delta frame: " + (lastFTime - frameTime).toString();
+                deltaSpan.textContent = `${(Date.now() - frameTime) >> 0} ms` + " buff: " + frameBuffer.length + " delta frame: " + ((lastFTime - frameTime) >> 0).toString();
                 lastFTime = frameTime;
                 timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
             };

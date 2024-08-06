@@ -2,9 +2,11 @@ import { MatrixElement } from "./MatrixElement";
 
 export abstract class DynamicModifier {
     protected element: MatrixElement;
+    framesPerSecond: number | undefined;
 
-    protected constructor(element: MatrixElement) {
+    protected constructor(element: MatrixElement, framesPerSecond?: number) {
         this.element = element;
+        this.framesPerSecond = framesPerSecond
     }
 
     abstract apply(timestamp: number): void;
@@ -41,12 +43,15 @@ export class RainbowEffectModifier extends DynamicModifier {
     }
 }
 
+
+
 export class ScrollingTextModifier extends DynamicModifier {
     speedPixelsPerSecond: number;
     previousTime: number | undefined;
 
-    constructor(element: MatrixElement, speedPixelsPerSecond: number) {
-        super(element);
+
+    constructor(element: MatrixElement, speedPixelsPerSecond: number, framesPerSecond: number) {
+        super(element, framesPerSecond);
         this.speedPixelsPerSecond = speedPixelsPerSecond;
         this.previousTime = undefined;
     }

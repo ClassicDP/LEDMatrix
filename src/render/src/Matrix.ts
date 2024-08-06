@@ -8,6 +8,8 @@ export class Matrix {
     framesPerGroup: number;
     startTime: number;
     lastEndTime: number;
+    private elementIdCounter: number = 0;
+
 
     constructor(width: number, height: number, framesPerSecond: number, framesPerGroup: number, startTime: number) {
         this.width = width;
@@ -16,6 +18,10 @@ export class Matrix {
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+    }
+
+    generateElementId(): string {
+        return `element-${this.elementIdCounter++}`;
     }
 
     setStartTime(newStartTime: number) {

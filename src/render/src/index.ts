@@ -2,8 +2,12 @@ import { Matrix } from './Matrix';
 import { MatrixElement } from './MatrixElement';
 import { ScrollingTextModifier, RainbowEffectModifier } from './Modifiers';
 
-
 let ws: WebSocket | null = null;
+let textElement1: MatrixElement | undefined;
+let textElement2: MatrixElement | undefined;
+let timeElement: MatrixElement | undefined;
+let matrix: Matrix | undefined;
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
 
@@ -14,51 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Создание элементов матрицы
-    const textElement1 = new MatrixElement("Running text 1", 0, 0, 128, 20);
-    textElement1.updateTextStyle({
-        fontSize: '12px',
-        color: 'lime',
-        fontWeight: 'bold'
-    });
-
-    const textElement2 = new MatrixElement("Running text 2", 0, 30, 128, 20);
-    textElement2.updateTextStyle({
-        fontSize: '12px',
-        color: 'red',
-        fontWeight: 'bold'
-    });
-
-    // Создание элемента для отображения текущего времени
-    const timeElement = new MatrixElement("", 0, 15, 128, 20); // Центрируем элемент по вертикали
-    timeElement.updateTextStyle({
-        fontSize: '12px',
-        color: 'yellow',
-        fontWeight: 'bold',
-        textAlign: 'center' // Выравнивание текста по центру
-    });
-
-    // Добавление коллбэка для обновления времени
-    timeElement.setTextUpdateCallback((timestamp) => {
-        const now = new Date(timestamp);
-        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
-    });
-
-    // Добавление модификаторов к элементам
-    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20);
-    textElement1.addModifier(scrollingModifier1);
-
-    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
-    textElement1.addModifier(rainbowModifier1);
-
-    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30);
-    textElement2.addModifier(scrollingModifier2);
-
-    const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
-    textElement2.addModifier(rainbowModifier2);
-
-    // Создание и отображение группы кадров с несколькими элементами
-    const matrix = new Matrix(128, 64, 30, 15, Date.now());
+    // Проверка на существование элементов
+    if (!matrix || !textElement1 || !textElement2 || !timeElement) {
+        initializeElements();
+    }
 
     if (!ws) {
         ws = new WebSocket('ws://localhost:8081');
@@ -69,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (message.command === 'generateNextGroup') {
-                    let frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
+                if (message.command === 'generateNextGroup' && matrix) {
+                    let frameGroup = matrix.generateNextGroup(container, [textElement1!, textElement2!, timeElement!]);
 
                     ws!.send(JSON.stringify({ frameGroup }));
                 }
-                if (message.command === 'setStartTime') {
-                    matrix.setStartTime(message.value)
+                if (message.command === 'setStartTime' && matrix) {
+                    matrix.setStartTime(message.value);
                 }
             } catch (e) {
                 console.error('Error processing message:', e);
@@ -93,4 +56,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function initializeElements() {
+    matrix = new Matrix(128, 64, 60, 20, Date.now());
 
+    // Инициализация элементов матрицы
+    textElement1 = new MatrixElement(matrix,"Running text 1", 0, 0, 128, 20);
+    textElement1.updateTextStyle({
+        fontSize: '12px',
+        color: 'lime',
+        fontWeight: 'bold'
+    });
+
+    textElement2 = new MatrixElement(matrix,"Running text 2", 0, 30, 128, 20);
+    textElement2.updateTextStyle({
+        fontSize: '12px',
+        color: 'red',
+        fontWeight: 'bold'
+    });
+
+    timeElement = new MatrixElement(matrix,"", 0, 15, 128, 20);
+    timeElement.updateTextStyle({
+        fontSize: '12px',
+        color: 'yellow',
+        fontWeight: 'bold',
+        textAlign: 'center'
+    });
+
+    timeElement.setTextUpdateCallback((timestamp) => {
+        const now = new Date(timestamp);
+        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+    });
+
+    // Добавление модификаторов к элементам
+    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
+    textElement1.addModifier(scrollingModifier1);
+
+    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
+    textElement1.addModifier(rainbowModifier1);
+
+    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
+    textElement2.addModifier(scrollingModifier2);
+
+    const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
+    textElement2.addModifier(rainbowModifier2);
+
+}

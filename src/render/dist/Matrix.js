@@ -1,12 +1,16 @@
 import { FrameGroup } from "./FrameGroup";
 export class Matrix {
     constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
+        this.elementIdCounter = 0;
         this.width = width;
         this.height = height;
         this.framesPerSecond = framesPerSecond;
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+    }
+    generateElementId() {
+        return `element-${this.elementIdCounter++}`;
     }
     setStartTime(newStartTime) {
         this.startTime = newStartTime;
