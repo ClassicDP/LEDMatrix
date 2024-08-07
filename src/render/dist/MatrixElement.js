@@ -9,6 +9,7 @@ export class MatrixElement {
         this.modifiers = [];
         this.textStyle = {};
         this.textWidth = this.calculateTextWidth();
+        this._initFn();
     }
     // Метод для вычисления ширины текста без добавления элемента в DOM
     calculateTextWidth() {
@@ -28,8 +29,15 @@ export class MatrixElement {
         this.textWidth = this.calculateTextWidth();
     }
     updateTextStyle(newStyles) {
+        console.log('element: ', this);
         Object.assign(this.textStyle, newStyles);
         this.textWidth = this.calculateTextWidth();
+    }
+    _initFn() {
+        this.setTextUpdateCallback((timestamp) => {
+            const now = new Date(timestamp);
+            return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+        });
     }
     setTextUpdateCallback(callback) {
         this.textUpdateCallback = callback;

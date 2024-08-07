@@ -52,12 +52,38 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let clientCounter = 0;
+let startScreenshotTime=0;
+let endScreenshotTime = 0;
+let generateNextGroupStart = 0;
+let generateNextGroupEnd = 0;
 
-wss.on('connection', (ws: WebSocket) => {
+let positiveNextGroupTime = 0
+
+let wsRender: WebSocket;
+let initOnce: boolean = false
+
+let resolveFunc: ((value: string) => void) | undefined;
+let snapshot: string | undefined
+
+async function waitingForSnapshot(): Promise<string> {
+    return new Promise<string>((resolve) => {
+        resolveFunc = resolve;
+    });
+}
+
+wss.on('connection', async (ws: WebSocket) => {
     const clientId = ++clientCounter;
     clients.push(ws);
     console.log(`Client connected: ${clientId}`);
-    if (lastTime)
+    if (!initOnce) {
+        initOnce = true
+        ws.send(JSON.stringify({ command: 'initializeElements' }));
+    }
+    if (snapshot) {
+        ws.send(JSON.stringify({command: 'loadSnapshot', value: snapshot}));
+        snapshot = undefined
+        console.log('snapshot sent')
+    } else if (lastTime)
         ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
 
     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
@@ -70,31 +96,40 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('message', async (message: string) => {
         const request = JSON.parse(message);
 
+
+
+        if (request.command == 'loadSnapshot' && resolveFunc) {
+            resolveFunc(request.value)
+        }
         if (request.frameGroup) {
+            wsRender = ws
+            await mutex.lock();
+            generateNextGroupEnd = Date.now()
+            positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart
             const frameGroup = request.frameGroup;
 
             // Устанавливаем размер окна просмотра
             if (page) {
-                await mutex.lock();
-                await page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
+                await page.setViewportSize({width: frameGroup.width, height: frameGroup.totalHeight});
                 lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
 
-                const startScreenshotTime = Date.now();
+                startScreenshotTime = Date.now();
                 await captureAndSendScreenshot(frameGroup);
-                const endScreenshotTime = Date.now();
+                endScreenshotTime = Date.now();
 
                 mutex.unlock();
 
                 let deltaT = frameGroup.startTime - Date.now() - 1000;
                 const delay = Math.max(0, deltaT);
-                setTimeout(() => {
-                    ws.send(JSON.stringify({ command: 'generateNextGroup' }));
+                setTimeout(async () => {
+                    await mutex.lock()
+                    ws.send(JSON.stringify({command: 'generateNextGroup'}));
+                    generateNextGroupStart = Date.now()
+                    mutex.unlock()
                 }, delay / 2);
             } else {
                 console.log('Page is not available');
             }
-        } else {
-            console.log('Unknown message received:', message);
         }
     });
 
@@ -118,6 +153,15 @@ async function createNewPage() {
 
         const filePath = path.join(__dirname, '../../../src/render/dist/index.html');
         await page.goto(`file://${filePath}`, { waitUntil: 'load' });
+        page.on('console', async (msg: { args: () => any; }) => {
+            await mutex.lock()
+            const msgArgs = msg.args();
+            try {
+                const logValues = await Promise.all(msgArgs.map(async (arg: { jsonValue: () => any; }) => await arg.jsonValue()));
+                console.log("::", ...logValues);
+            } catch (e) {}
+            mutex.unlock()
+        });
 
         console.log('New page loaded');
     } catch (error) {
@@ -140,6 +184,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
                         container.style.height = `${totalHeight}px`;
                     }
                 }, totalHeight);
+
 
                 const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
                 const boundingBox = await elementHandle.boundingBox();
@@ -193,11 +238,22 @@ server.listen(8081, () => {
 });
 
 // Логирование использования памяти каждые 10 секунд
-setInterval(() => {
+setInterval(async () => {
+    await mutex.lock()
     const memoryUsage = process.memoryUsage();
     console.log(new Date().toLocaleString());
     console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
     console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
     console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
     console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`GenerateNextGroup: ${positiveNextGroupTime}`);
+    console.log(`Screenshot time: ${endScreenshotTime - startScreenshotTime}`);
+    if (page && wsRender) {
+        wsRender.send(JSON.stringify({command: 'getSnapshot'}));
+        snapshot = await waitingForSnapshot();
+        console.log('___',snapshot)
+        await page.close();
+        await createNewPage();
+    }
+    mutex.unlock()
 }, 10000);

@@ -1,42 +1,17 @@
 import { Matrix } from './Matrix';
 import { MatrixElement } from './MatrixElement';
-import { ScrollingTextModifier, RainbowEffectModifier, RotationModifier } from './Modifiers';
-import { SerDe } from "./SerDe";
-SerDe.classRegistration([Matrix, MatrixElement, RainbowEffectModifier, ScrollingTextModifier, RotationModifier]);
+import { ScrollingTextModifier, RainbowEffectModifier } from './Modifiers';
+import { SerDe } from "@serde/*";
 let ws = null;
 let textElement1;
 let textElement2;
 let timeElement;
 let matrix;
-let scrollingModifier1;
-let scrollingModifier2;
-let rainbowModifier1;
-class Environment {
-    constructor(matrix, textElement1, textElement2, timeElement, scrollingModifier1, scrollingModifier2, rainbowModifier1) {
-        this.matrix = matrix;
-        this.textElement1 = textElement1;
-        this.textElement2 = textElement2;
-        this.timeElement = timeElement;
-        this.scrollingModifier1 = scrollingModifier1;
-        this.scrollingModifier2 = scrollingModifier2;
-        this.rainbowModifier1 = rainbowModifier1;
-    }
-}
 function getSnapshot() {
-    let environment;
-    environment = new Environment(matrix, textElement1, textElement2, timeElement, scrollingModifier1, scrollingModifier2, rainbowModifier1);
-    return SerDe.serialise(environment);
+    return JSON.stringify({ snapshot: SerDe.serialise([ws, textElement1, textElement2, timeElement, matrix]) });
 }
 function fromSnapshot(snapshot) {
-    let environment = SerDe.deserialize(snapshot);
-    matrix = environment.matrix;
-    textElement1 = environment.textElement1;
-    textElement2 = environment.textElement2;
-    timeElement = environment.timeElement;
-    scrollingModifier1 = environment.scrollingModifier1;
-    scrollingModifier2 = environment.scrollingModifier2;
-    rainbowModifier1 = environment.rainbowModifier1;
-    console.log('Snapshot loaded', JSON.stringify(snapshot));
+    [ws, textElement1, textElement2, timeElement, matrix] = SerDe.deserialize(snapshot);
 }
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
@@ -53,8 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (!message.imageBuffer)
-                    console.log(message);
                 switch (message.command) {
                     case 'generateNextGroup':
                         if (matrix) {
@@ -77,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'loadSnapshot':
                         fromSnapshot(message.value);
                         break;
+                    default:
+                        console.error('Unknown command:', message.command);
                 }
             }
             catch (e) {
@@ -113,11 +88,15 @@ function initializeElements() {
         fontWeight: 'bold',
         textAlign: 'center'
     });
-    scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
+    timeElement.setTextUpdateCallback((timestamp) => {
+        const now = new Date(timestamp);
+        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+    });
+    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
     textElement1.addModifier(scrollingModifier1);
-    rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
+    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
     textElement1.addModifier(rainbowModifier1);
-    scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
+    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
     textElement2.addModifier(scrollingModifier2);
     const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
     textElement2.addModifier(rainbowModifier2);

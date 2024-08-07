@@ -1,12 +1,61 @@
 import { Matrix } from './Matrix';
 import { MatrixElement } from './MatrixElement';
-import { ScrollingTextModifier, RainbowEffectModifier } from './Modifiers';
+import {ScrollingTextModifier, RainbowEffectModifier, DynamicModifier, RotationModifier} from './Modifiers';
+import {SerDe} from "./SerDe";
+import * as util from "node:util";
+SerDe.classRegistration([Matrix, MatrixElement, RainbowEffectModifier, ScrollingTextModifier, RotationModifier])
+
+interface WebSocketCommand {
+    command: 'generateNextGroup' | 'setStartTime' | 'getSnapshot' | 'loadSnapshot' | 'initializeElements';
+    value?: any;
+    imageBuffer?: string
+}
 
 let ws: WebSocket | null = null;
 let textElement1: MatrixElement | undefined;
 let textElement2: MatrixElement | undefined;
 let timeElement: MatrixElement | undefined;
 let matrix: Matrix | undefined;
+let scrollingModifier1: ScrollingTextModifier
+let scrollingModifier2: ScrollingTextModifier
+let rainbowModifier1: RainbowEffectModifier
+
+class Environment {
+    matrix: Matrix
+    textElement1: MatrixElement
+    textElement2: MatrixElement
+    timeElement: MatrixElement
+    scrollingModifier1: ScrollingTextModifier
+    scrollingModifier2: ScrollingTextModifier
+    rainbowModifier1: RainbowEffectModifier
+    constructor(matrix: Matrix, textElement1: MatrixElement, textElement2: MatrixElement, timeElement: MatrixElement, scrollingModifier1: ScrollingTextModifier, scrollingModifier2: ScrollingTextModifier, rainbowModifier1: RainbowEffectModifier) {
+        this.matrix = matrix;
+        this.textElement1 = textElement1;
+        this.textElement2 = textElement2;
+        this.timeElement = timeElement;
+        this.scrollingModifier1 = scrollingModifier1;
+        this.scrollingModifier2 = scrollingModifier2;
+        this.rainbowModifier1 = rainbowModifier1;
+    }
+}
+
+function getSnapshot(): string {
+    let environment: Environment;
+    environment = new Environment(matrix!, textElement1!, textElement2!, timeElement!, scrollingModifier1!, scrollingModifier2!, rainbowModifier1!);
+    return SerDe.serialise(environment);
+}
+
+function fromSnapshot(snapshot: string): void {
+    let environment: Environment = SerDe.deserialize(snapshot);
+    matrix = environment.matrix
+    textElement1 = environment.textElement1
+    textElement2 = environment.textElement2
+    timeElement = environment.timeElement
+    scrollingModifier1 = environment.scrollingModifier1
+    scrollingModifier2 = environment.scrollingModifier2
+    rainbowModifier1 = environment.rainbowModifier1
+    console.log('Snapshot loaded', JSON.stringify(snapshot))
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
@@ -18,11 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Проверка на существование элементов
-    if (!matrix || !textElement1 || !textElement2 || !timeElement) {
-        initializeElements();
-    }
-
     if (!ws) {
         ws = new WebSocket('ws://localhost:8081');
         ws.onopen = () => {
@@ -31,14 +75,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onmessage = (event) => {
             try {
-                const message = JSON.parse(event.data);
-                if (message.command === 'generateNextGroup' && matrix) {
-                    let frameGroup = matrix.generateNextGroup(container, [textElement1!, textElement2!, timeElement!]);
+                const message: WebSocketCommand = JSON.parse(event.data);
+                if (!message.imageBuffer) console.log(message)
 
-                    ws!.send(JSON.stringify({ frameGroup }));
-                }
-                if (message.command === 'setStartTime' && matrix) {
-                    matrix.setStartTime(message.value);
+                switch (message.command) {
+                    case 'generateNextGroup':
+                        if (matrix) {
+                            const frameGroup = matrix.generateNextGroup(container, [textElement1!, textElement2!, timeElement!]);
+                            ws!.send(JSON.stringify({ frameGroup }));
+                        }
+                        break;
+
+                    case 'setStartTime':
+                        if (matrix) {
+                            matrix.setStartTime(message.value);
+                        }
+                        break;
+                    case 'initializeElements':
+                        initializeElements();
+                        break;
+
+                    case 'getSnapshot':
+                        const snapshot = getSnapshot();
+                        ws!.send(JSON.stringify({ command: 'loadSnapshot', value: snapshot }));
+                        break;
+
+                    case 'loadSnapshot':
+                        fromSnapshot(message.value);
+                        break;
+
                 }
             } catch (e) {
                 console.error('Error processing message:', e);
@@ -54,27 +119,28 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('WebSocket error:', error);
         };
     }
+
 });
 
 function initializeElements() {
     matrix = new Matrix(128, 64, 60, 20, Date.now());
 
-    // Инициализация элементов матрицы
-    textElement1 = new MatrixElement(matrix,"Running text 1", 0, 0, 128, 20);
+    textElement1 = new MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
         fontSize: '12px',
         color: 'lime',
         fontWeight: 'bold'
     });
 
-    textElement2 = new MatrixElement(matrix,"Running text 2", 0, 30, 128, 20);
+    textElement2 = new MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
     textElement2.updateTextStyle({
         fontSize: '12px',
         color: 'red',
         fontWeight: 'bold'
     });
 
-    timeElement = new MatrixElement(matrix,"", 0, 15, 128, 20);
+
+    timeElement = new MatrixElement(matrix, "", 0, 15, 128, 20);
     timeElement.updateTextStyle({
         fontSize: '12px',
         color: 'yellow',
@@ -82,22 +148,16 @@ function initializeElements() {
         textAlign: 'center'
     });
 
-    timeElement.setTextUpdateCallback((timestamp) => {
-        const now = new Date(timestamp);
-        return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
-    });
 
-    // Добавление модификаторов к элементам
-    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
+    scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
     textElement1.addModifier(scrollingModifier1);
 
-    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
+    rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
     textElement1.addModifier(rainbowModifier1);
 
-    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
+    scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
     textElement2.addModifier(scrollingModifier2);
 
     const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
     textElement2.addModifier(rainbowModifier2);
-
 }

@@ -46,7 +46,7 @@ worker.onmessage = (event) => {
 };
 
 // const ws = new WebSocket('ws://localhost:8081');
-const ws = new WebSocket('ws://192.168.1.85:8081');
+const ws = new WebSocket('ws://localhost:8081');
 ws.onmessage = (event) => {
     const frameGroup: FrameGroup = JSON.parse(event.data);
 
@@ -103,7 +103,7 @@ async function displayFrame() {
             // Теперь рисуем сетку поверх изображения
             drawPixelGrid(scale);
 
-            deltaSpan.textContent = `${(Date.now() - frameTime) >> 0} ms` + " buff: " + frameBuffer.length + " delta frame: " + ((lastFTime - frameTime) >> 0).toString();
+            deltaSpan.textContent = `${(Date.now() - frameTime) >> 0} ms` + " buff: " + frameBuffer.length + " delta frame: " + (( frameTime- lastFTime) >> 0).toString();
             lastFTime = frameTime;
             timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
         };
