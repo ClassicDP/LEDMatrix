@@ -27,12 +27,18 @@
     "webpack-dev-server": "^5.0.4"
   },
   "dependencies": {
+    "axios": "^1.7.4",
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
     "canvas": "^2.11.2",
     "chrome-remote-interface": "^0.33.2",
+    "html2canvas": "^1.4.1",
+    "jsdom": "^24.1.1",
     "puppeteer": "^22.15.0",
     "selenium-webdriver": "^4.23.0",
     "sharp": "^0.33.4",
-    "undici-types": "^6.11.1"
+    "undici-types": "^6.11.1",
+    "ws": "^8.18.0"
   },
   "description": ""
 }

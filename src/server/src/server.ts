@@ -251,9 +251,8 @@ setInterval(async () => {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({command: 'getSnapshot'}));
         snapshot = await waitingForSnapshot();
-        console.log('___',snapshot)
         await page.close();
         await createNewPage();
     }
     mutex.unlock()
-}, 10000);
+}, 30000);

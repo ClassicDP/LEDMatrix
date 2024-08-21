@@ -10,6 +10,7 @@
             <path value="file://$PROJECT_DIR$/src/server" />
             <path value="file://$PROJECT_DIR$" />
             <path value="file://$PROJECT_DIR$/src/selenium" />
+            <path value="file://$PROJECT_DIR$/src/lib" />
           </resourceRoots>
         </entryData>
       </entry>

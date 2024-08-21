@@ -231,10 +231,9 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = yield waitingForSnapshot();
-        console.log('___', snapshot);
         yield page.close();
         yield createNewPage();
     }
     mutex.unlock();
-}), 10000);
+}), 30000);
 //# sourceMappingURL=server.js.map

@@ -1,9 +1,9 @@
-import { Matrix } from './Matrix';
-import { MatrixElement } from './MatrixElement';
-import {ScrollingTextModifier, RainbowEffectModifier, DynamicModifier, RotationModifier} from './Modifiers';
+import {Matrix} from './Matrix';
+import {MatrixElement, TimeMatrixElement} from './MatrixElement';
+import {RainbowEffectModifier, RotationModifier, ScrollingTextModifier} from './Modifiers';
 import {SerDe} from "./SerDe";
-import * as util from "node:util";
-SerDe.classRegistration([Matrix, MatrixElement, RainbowEffectModifier, ScrollingTextModifier, RotationModifier])
+
+SerDe.classRegistration([Matrix, MatrixElement, TimeMatrixElement, RainbowEffectModifier, ScrollingTextModifier, RotationModifier])
 
 interface WebSocketCommand {
     command: 'generateNextGroup' | 'setStartTime' | 'getSnapshot' | 'loadSnapshot' | 'initializeElements';
@@ -14,7 +14,7 @@ interface WebSocketCommand {
 let ws: WebSocket | null = null;
 let textElement1: MatrixElement | undefined;
 let textElement2: MatrixElement | undefined;
-let timeElement: MatrixElement | undefined;
+let timeElement: TimeMatrixElement | undefined;
 let matrix: Matrix | undefined;
 let scrollingModifier1: ScrollingTextModifier
 let scrollingModifier2: ScrollingTextModifier
@@ -24,11 +24,11 @@ class Environment {
     matrix: Matrix
     textElement1: MatrixElement
     textElement2: MatrixElement
-    timeElement: MatrixElement
+    timeElement: TimeMatrixElement
     scrollingModifier1: ScrollingTextModifier
     scrollingModifier2: ScrollingTextModifier
     rainbowModifier1: RainbowEffectModifier
-    constructor(matrix: Matrix, textElement1: MatrixElement, textElement2: MatrixElement, timeElement: MatrixElement, scrollingModifier1: ScrollingTextModifier, scrollingModifier2: ScrollingTextModifier, rainbowModifier1: RainbowEffectModifier) {
+    constructor(matrix: Matrix, textElement1: MatrixElement, textElement2: MatrixElement, timeElement: TimeMatrixElement, scrollingModifier1: ScrollingTextModifier, scrollingModifier2: ScrollingTextModifier, rainbowModifier1: RainbowEffectModifier) {
         this.matrix = matrix;
         this.textElement1 = textElement1;
         this.textElement2 = textElement2;
@@ -54,7 +54,6 @@ function fromSnapshot(snapshot: string): void {
     scrollingModifier1 = environment.scrollingModifier1
     scrollingModifier2 = environment.scrollingModifier2
     rainbowModifier1 = environment.rainbowModifier1
-    console.log('Snapshot loaded', JSON.stringify(snapshot))
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -76,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const message: WebSocketCommand = JSON.parse(event.data);
-                if (!message.imageBuffer) console.log(message)
 
                 switch (message.command) {
                     case 'generateNextGroup':
@@ -123,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeElements() {
-    matrix = new Matrix(128, 64, 60, 20, Date.now());
+    matrix = new Matrix(128, 64, 40, 20, Date.now());
 
     textElement1 = new MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
@@ -140,7 +138,7 @@ function initializeElements() {
     });
 
 
-    timeElement = new MatrixElement(matrix, "", 0, 15, 128, 20);
+    timeElement = new TimeMatrixElement(matrix, "", 0, 15, 128, 20);
     timeElement.updateTextStyle({
         fontSize: '12px',
         color: 'yellow',

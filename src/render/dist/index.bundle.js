@@ -110,7 +110,8 @@ class Matrix {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   MatrixElement: () => (/* binding */ MatrixElement)
+/* harmony export */   MatrixElement: () => (/* binding */ MatrixElement),
+/* harmony export */   TimeMatrixElement: () => (/* binding */ TimeMatrixElement)
 /* harmony export */ });
 class MatrixElement {
     constructor(matrix, content, x, y, width, height) {
@@ -123,7 +124,6 @@ class MatrixElement {
         this.modifiers = [];
         this.textStyle = {};
         this.textWidth = this.calculateTextWidth();
-        this._initFn();
     }
     // Метод для вычисления ширины текста без добавления элемента в DOM
     calculateTextWidth() {
@@ -143,15 +143,8 @@ class MatrixElement {
         this.textWidth = this.calculateTextWidth();
     }
     updateTextStyle(newStyles) {
-        console.log('element: ', this);
         Object.assign(this.textStyle, newStyles);
         this.textWidth = this.calculateTextWidth();
-    }
-    _initFn() {
-        this.setTextUpdateCallback((timestamp) => {
-            const now = new Date(timestamp);
-            return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
-        });
     }
     setTextUpdateCallback(callback) {
         this.textUpdateCallback = callback;
@@ -192,6 +185,18 @@ class MatrixElement {
             div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
+    }
+}
+class TimeMatrixElement extends MatrixElement {
+    constructor(matrix, content, x, y, width, height) {
+        super(matrix, content, x, y, width, height);
+        this._initFn();
+    }
+    _initFn() {
+        this.setTextUpdateCallback((timestamp) => {
+            const now = new Date(timestamp);
+            return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
+        });
     }
 }
 
@@ -502,7 +507,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-_SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix, _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier]);
+_SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix, _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement, _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier]);
 let ws = null;
 let textElement1;
 let textElement2;
@@ -536,7 +541,6 @@ function fromSnapshot(snapshot) {
     scrollingModifier1 = environment.scrollingModifier1;
     scrollingModifier2 = environment.scrollingModifier2;
     rainbowModifier1 = environment.rainbowModifier1;
-    console.log('Snapshot loaded', JSON.stringify(snapshot));
 }
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
@@ -553,8 +557,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (!message.imageBuffer)
-                    console.log(message);
                 switch (message.command) {
                     case 'generateNextGroup':
                         if (matrix) {
@@ -593,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 function initializeElements() {
-    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 40, 20, Date.now());
     textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
         fontSize: '12px',
@@ -606,7 +608,7 @@ function initializeElements() {
         color: 'red',
         fontWeight: 'bold'
     });
-    timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "", 0, 15, 128, 20);
+    timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement(matrix, "", 0, 15, 128, 20);
     timeElement.updateTextStyle({
         fontSize: '12px',
         color: 'yellow',

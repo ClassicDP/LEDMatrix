@@ -34,13 +34,22 @@ worker.onmessage = (event) => {
         frameCount++;
     });
 };
-// const ws = new WebSocket('ws://localhost:8081');
 const ws = new WebSocket('ws://localhost:8081');
 ws.onmessage = (event) => {
-    const frameGroup = JSON.parse(event.data);
-    if (frameGroup.imageBuffer) {
-        // Передаем данные на нарезку в Worker
-        worker.postMessage(frameGroup);
+    const data = JSON.parse(event.data);
+    if (Array.isArray(data)) {
+        // Если пришел массив кадров, обрабатываем его
+        data.forEach((frame) => {
+            frameBuffer.push(frame);
+            if (frameBuffer.length > bufferLimit) {
+                frameBuffer.shift();
+            }
+            frameCount++;
+        });
+    }
+    else if (data.imageBuffer) {
+        // Если пришла FrameGroup, передаем данные на нарезку в Worker
+        worker.postMessage(data);
     }
 };
 let fps = 0;
@@ -65,14 +74,14 @@ function displayFrame() {
                 // Рассчитываем scale для текущего размера окна
                 const maxWidth = window.innerWidth;
                 const maxHeight = window.innerHeight;
-                const scaleX = Math.floor(maxWidth / width);
-                const scaleY = Math.floor(maxHeight / height);
+                const scaleX = maxWidth / width;
+                const scaleY = maxHeight / height;
                 const scale = Math.min(scaleX, scaleY); // Округляем масштаб до меньшего целого
                 // Настраиваем canvas
                 canvas.width = width * scale;
                 canvas.height = height * scale;
-                canvas.style.width = `${canvas.width}px`;
-                canvas.style.height = `${canvas.height}px`;
+                canvas.style.width = `${canvas.width >> 0}px`;
+                canvas.style.height = `${canvas.height >> 0}px`;
                 // Отключаем сглаживание изображений
                 ctx.imageSmoothingEnabled = false;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);

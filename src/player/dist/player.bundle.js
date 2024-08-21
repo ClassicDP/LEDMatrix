@@ -23,16 +23,108 @@ const ctx = canvas.getContext('2d');
 const timestampSpan = document.getElementById('timestamp');
 const deltaSpan = document.getElementById('delta');
 const fpsSpan = document.getElementById('fps');
-const scale = 8;
-const width = 96;
-const height = 32;
-canvas.width = width * scale;
-canvas.height = height * scale;
-canvas.style.width = `${width * scale}px`;
-canvas.style.height = `${height * scale}px`;
-function drawPixelGrid() {
-    ctx.strokeStyle = 'gray';
-    ctx.lineWidth = 0.5;
+let width;
+let height;
+const frameBuffer = [];
+const bufferLimit = 500;
+let frameCount = 0;
+let lastFTime = 0;
+const wait = (ms) => __awaiter(void 0, void 0, void 0, function* () {
+    return new Promise(res => setTimeout(res, ms));
+});
+// Создаем Web Worker
+const worker = new Worker('imageWorker.js');
+worker.onmessage = (event) => {
+    const frames = event.data;
+    frames.forEach((frame) => {
+        frameBuffer.push(frame);
+        if (frameBuffer.length > bufferLimit) {
+            frameBuffer.shift();
+        }
+        frameCount++;
+    });
+};
+const ws = new WebSocket('ws://localhost:8080');
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (Array.isArray(data)) {
+        // Если пришел массив кадров, обрабатываем его
+        data.forEach((frame) => {
+            frameBuffer.push(frame);
+            if (frameBuffer.length > bufferLimit) {
+                frameBuffer.shift();
+            }
+            frameCount++;
+        });
+    }
+    else if (data.imageBuffer) {
+        // Если пришла FrameGroup, передаем данные на нарезку в Worker
+        worker.postMessage(data);
+    }
+};
+let fps = 0;
+function displayFrame() {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        if (frameBuffer.length > 0) {
+            const frame = frameBuffer.shift();
+            const frameTime = frame.timeStamp;
+            const currentTime = Date.now();
+            const timeToWait = frameTime - currentTime;
+            if (timeToWait > 0) {
+                yield wait(timeToWait);
+            }
+            fps++;
+            const image = new Image();
+            image.src = `data:image/png;base64,${frame.imageBuffer}`;
+            image.onload = () => {
+                // Получаем фактические размеры изображения
+                width = image.naturalWidth;
+                height = image.naturalHeight;
+                // Рассчитываем scale для текущего размера окна
+                const maxWidth = window.innerWidth;
+                const maxHeight = window.innerHeight;
+                const scaleX = maxWidth / width;
+                const scaleY = maxHeight / height;
+                const scale = Math.min(scaleX, scaleY); // Округляем масштаб до меньшего целого
+                // Настраиваем canvas
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+                canvas.style.width = `${canvas.width >> 0}px`;
+                canvas.style.height = `${canvas.height >> 0}px`;
+                // Отключаем сглаживание изображений
+                ctx.imageSmoothingEnabled = false;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Рисуем изображение с учетом масштаба
+                ctx.drawImage(image, 0, 0, width * scale, height * scale);
+                // Теперь рисуем сетку поверх изображения
+                drawPixelGrid(scale);
+                deltaSpan.textContent = `${(Date.now() - frameTime) >> 0} ms` + " buff: " + frameBuffer.length + " delta frame: " + ((frameTime - lastFTime) >> 0).toString();
+                lastFTime = frameTime;
+                timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
+            };
+        }
+        if (Number.parseInt((_a = deltaSpan.textContent) !== null && _a !== void 0 ? _a : '0') < 10) {
+            requestAnimationFrame(displayFrame);
+        }
+        else {
+            setTimeout(() => displayFrame(), 0);
+        }
+    });
+}
+setInterval(() => {
+    fpsSpan.textContent = fps.toString();
+    fps = 0;
+}, 1000);
+ws.onopen = () => __awaiter(void 0, void 0, void 0, function* () {
+    yield displayFrame();
+});
+ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+};
+function drawPixelGrid(scale) {
+    ctx.strokeStyle = 'white'; // Можно вернуть на white после тестирования
+    ctx.lineWidth = 0.1;
     for (let x = 0; x < canvas.width; x += scale) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -46,63 +138,6 @@ function drawPixelGrid() {
         ctx.stroke();
     }
 }
-const ws = new WebSocket('ws://localhost:8081');
-const frameBuffer = [];
-const bufferLimit = 100;
-let frameCount = 0;
-let referenceFrameTime = 0;
-let referenceWallTime = 0;
-ws.onmessage = (event) => {
-    const frame = JSON.parse(event.data);
-    if (!frame.timeStamp)
-        return;
-    const frameTime = new Date(frame.timeStamp).getTime();
-    frameBuffer.push(frame);
-    if (frameBuffer.length === bufferLimit || frameCount % 50 === 0) {
-        referenceFrameTime = frameTime;
-        referenceWallTime = Date.now();
-    }
-    if (frameBuffer.length > bufferLimit) {
-        frameBuffer.shift();
-    }
-    frameCount++;
-};
-let fps = 0;
-function displayFrame() {
-    if (frameBuffer.length > 10) {
-        const frame = frameBuffer.shift();
-        const frameTime = new Date(frame.timeStamp).getTime();
-        const currentTime = Date.now();
-        const expectedDisplayTime = referenceWallTime + (frameTime - referenceFrameTime);
-        if (currentTime >= expectedDisplayTime || expectedDisplayTime - currentTime > 250) {
-            fps++;
-            const image = new Image();
-            image.src = `data:image/png;base64,${frame.imageBuffer}`;
-            image.onload = () => {
-                ctx.imageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                drawPixelGrid();
-                deltaSpan.textContent = `${Date.now() - frameTime} ms`;
-                timestampSpan.textContent = `${new Date(frame.timeStamp).toISOString().substr(14, 9)}`;
-            };
-        }
-        else {
-            frameBuffer.unshift(frame);
-            const delay = expectedDisplayTime - currentTime;
-            setTimeout(displayFrame, delay);
-            return;
-        }
-    }
-    requestAnimationFrame(displayFrame);
-}
-setInterval(() => { fpsSpan.textContent = fps.toString(); fps = 0; }, 1000);
-ws.onopen = () => __awaiter(void 0, void 0, void 0, function* () {
-    displayFrame();
-});
-ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-};
 
 
 /***/ })

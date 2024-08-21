@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Animation with html2canvas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .rainbow-text {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        #capture {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        #output {
+            border: 2px solid white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="capture">
+        <div id="rainbowText" class="rainbow-text">This is a rainbow animation!</div>
+    </div>
+    <div id="output"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+    const rainbowText = document.getElementById('rainbowText');
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
+    let colorIndex = 0;
+    const animationSpeed = 500; // Задержка 500 мс между сменой цветов (0.5 секунды)
+
+    function animateRainbowText() {
+        rainbowText.style.color = colors[colorIndex];
+        colorIndex = (colorIndex + 1) % colors.length;
+    }
+
+    function captureAnimation() {
+        const element = document.getElementById('capture');
+        html2canvas(element).then(canvas => {
+            const output = document.getElementById('output');
+            output.innerHTML = ''; // Clear previous content
+            output.appendChild(canvas);
+        });
+    }
+
+    setInterval(() => {
+        animateRainbowText();
+        captureAnimation();
+    }, animationSpeed); // Обновляем текст и захватываем кадры с частотой, определенной animationSpeed
+</script>
+
+</body>
+</html>
