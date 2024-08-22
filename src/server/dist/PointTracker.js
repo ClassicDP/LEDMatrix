@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PointTracker = void 0;
+const chalk_1 = __importDefault(require("chalk"));
 class PointTracker {
     constructor() {
         this.points = new Map();
@@ -13,8 +17,8 @@ class PointTracker {
             this.points.set(pointName, new PointData());
         }
         const currentPointData = this.points.get(pointName);
-        if (this.lastTimestamps.has(pointName)) { // Исправленная строка
-            const timeSinceLastVisit = currentTime - this.lastTimestamps.get(pointName); // Исправленная строка
+        if (this.lastTimestamps.has(pointName)) {
+            const timeSinceLastVisit = currentTime - this.lastTimestamps.get(pointName);
             currentPointData.updateIterationTime(timeSinceLastVisit);
         }
         currentPointData.incrementVisits();
@@ -40,9 +44,9 @@ class PointTracker {
     report() {
         const reportLines = [];
         this.points.forEach((data, point) => {
-            reportLines.push(`Point: ${point}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${data.averageIterationTime().toFixed(2)}ms`);
+            reportLines.push(`${chalk_1.default.green('Point: ' + point)}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${chalk_1.default.red(data.averageIterationTime().toFixed(2))}ms`);
             data.transitions.forEach((transitionData, fromPoint) => {
-                reportLines.push(`  Transition from ${fromPoint} to ${point}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${transitionData.averageTime().toFixed(2)}ms`);
+                reportLines.push(`  Transition from ${chalk_1.default.cyan(fromPoint)} to ${chalk_1.default.green(point)}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
             });
         });
         return reportLines.join("\n");

@@ -1,6 +1,8 @@
+import chalk from 'chalk';
+
 export class PointTracker {
     private points: Map<string, PointData>;
-    private lastTimestamps: Map<string, number>;  // Здесь всё правильно
+    private lastTimestamps: Map<string, number>;
     private lastPoint: string | null;
 
     constructor() {
@@ -18,8 +20,8 @@ export class PointTracker {
 
         const currentPointData = this.points.get(pointName)!;
 
-        if (this.lastTimestamps.has(pointName)) {  // Исправленная строка
-            const timeSinceLastVisit = currentTime - this.lastTimestamps.get(pointName)!;  // Исправленная строка
+        if (this.lastTimestamps.has(pointName)) {
+            const timeSinceLastVisit = currentTime - this.lastTimestamps.get(pointName)!;
             currentPointData.updateIterationTime(timeSinceLastVisit);
         }
 
@@ -52,11 +54,11 @@ export class PointTracker {
 
         this.points.forEach((data, point) => {
             reportLines.push(
-                `Point: ${point}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${data.averageIterationTime().toFixed(2)}ms`
+                `${chalk.green('Point: ' + point)}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${chalk.red(data.averageIterationTime().toFixed(2))}ms`
             );
             data.transitions.forEach((transitionData, fromPoint) => {
                 reportLines.push(
-                    `  Transition from ${fromPoint} to ${point}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${transitionData.averageTime().toFixed(2)}ms`
+                    `  Transition from ${chalk.cyan(fromPoint)} to ${chalk.green(point)}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${chalk.red(transitionData.averageTime().toFixed(2))}ms`
                 );
             });
         });

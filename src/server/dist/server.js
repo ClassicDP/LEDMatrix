@@ -75,9 +75,6 @@ let browser;
 let context;
 let lastTime;
 const mutex = new Mutex();
-// __dirname equivalent setup for ES modules
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
 let clientCounter = 0;
 let startScreenshotTime = 0;
 let endScreenshotTime = 0;
@@ -127,13 +124,16 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
             resolveFunc(request.value);
         }
         if (request.frameGroup) {
+            tracker.point('generate-next-group-end', ['generate-next-group-start']);
             wsRender = ws;
             yield mutex.lock();
             generateNextGroupEnd = Date.now();
             positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart;
             const frameGroup = request.frameGroup;
             if (page) {
+                tracker.point('resize-start');
                 yield page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
+                tracker.point('resize-end', ['resize-start']);
                 lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
                 startScreenshotTime = Date.now();
                 tracker.point('render-start');
@@ -145,9 +145,9 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
                 const delay = Math.max(0, deltaT);
                 setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
                     yield mutex.lock();
+                    tracker.point('generate-next-group-start');
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
                     generateNextGroupStart = Date.now();
-                    tracker.point('generate-next-group');
                     mutex.unlock();
                 }), delay / 2);
             }
@@ -168,16 +168,17 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
     context = yield browser.newContext();
     yield createNewPage();
     mutex.unlock();
-    tracker.point('initialization-end');
+    tracker.point('initialization-end', ['initialization-start']);
 }))();
 function createNewPage() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             tracker.point('page-creation-start');
-            console.log('Creating new page...');
             page = yield context.newPage();
             const filePath = path_1.default.join(__dirname, '../../../src/render/dist/index.html');
+            tracker.point('page-loading-start');
             yield page.goto(`file://${filePath}`, { waitUntil: 'load' });
+            tracker.point('page-loading-end', ['page-loading-start']);
             page.on('console', (msg) => __awaiter(this, void 0, void 0, function* () {
                 yield mutex.lock();
                 const msgArgs = msg.args();
@@ -189,7 +190,7 @@ function createNewPage() {
                 mutex.unlock();
             }));
             console.log('New page loaded');
-            tracker.point('page-creation-end');
+            tracker.point('page-creation-end', ['page-creation-start']);
         }
         catch (error) {
             console.error('Error creating or loading new page:', error);
@@ -206,18 +207,25 @@ function captureAndSendScreenshot(frameGroup) {
                 tracker.point('screenshot-attempt-start');
                 const { totalHeight, frameCount, width } = frameGroup;
                 if (page) {
+                    yield new Promise(resolve => setTimeout(resolve, 20));
+                    tracker.point('evaluate-start');
                     yield page.evaluate((totalHeight) => {
                         const container = document.getElementById('matrix-container');
                         if (container) {
                             container.style.height = `${totalHeight}px`;
                         }
                     }, totalHeight);
+                    tracker.point('evaluate-end', ['evaluate-start']);
+                    tracker.point('selector-wait-start');
                     const elementHandle = yield page.waitForSelector('#matrix-container', { state: 'visible' });
+                    tracker.point('selector-wait-end', ['selector-wait-start']);
                     const boundingBox = yield elementHandle.boundingBox();
+                    tracker.point('screenshot-start');
                     const screenshotBuffer = yield page.screenshot({
                         clip: boundingBox,
                         timeout: 100,
                     });
+                    tracker.point('screenshot-end', ['screenshot-start']);
                     // Отправляем изображение и параметры для нарезки на клиенте
                     const frameData = {
                         startTime: frameGroup.startTime,
@@ -227,12 +235,14 @@ function captureAndSendScreenshot(frameGroup) {
                         width: frameGroup.width,
                         imageBuffer: screenshotBuffer.toString('base64')
                     };
+                    tracker.point('data-sending-start');
                     clients.forEach((client) => {
                         if (client.readyState === ws_1.default.OPEN) {
                             tracker.point('sending-data');
                             client.send(JSON.stringify(frameData));
                         }
                     });
+                    tracker.point('data-sending-end', ['data-sending-start']);
                     tracker.point('screenshot-attempt-end');
                     return; // Если скриншот успешно создан, выходим из функции
                 }
@@ -270,20 +280,22 @@ server.listen(8081, () => {
 setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     yield mutex.lock();
     const memoryUsage = process.memoryUsage();
-    console.log(new Date().toLocaleString());
-    console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`GenerateNextGroup: ${positiveNextGroupTime}`);
-    console.log(`Screenshot time: ${endScreenshotTime - startScreenshotTime}`);
+    // console.log(new Date().toLocaleString());
+    // console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`GenerateNextGroup: ${positiveNextGroupTime}`);
+    // console.log(`Screenshot time: ${endScreenshotTime - startScreenshotTime}`);
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = yield waitingForSnapshot();
+        // await new Promise(resolve=>setTimeout(resolve, 10000))
         yield page.close();
+        tracker.point('page-close');
         yield createNewPage();
     }
     console.log(tracker.report()); // Выводим отчет о времени выполнения
     mutex.unlock();
-}), 30000);
+}), 10000);
 //# sourceMappingURL=server.js.map

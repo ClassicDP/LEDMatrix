@@ -530,6 +530,7 @@ class Environment {
 function getSnapshot() {
     let environment;
     environment = new Environment(matrix, textElement1, textElement2, timeElement, scrollingModifier1, scrollingModifier2, rainbowModifier1);
+    console.log('get snapshot', matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime);
     return _SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.serialise(environment);
 }
 function fromSnapshot(snapshot) {
@@ -541,6 +542,7 @@ function fromSnapshot(snapshot) {
     scrollingModifier1 = environment.scrollingModifier1;
     scrollingModifier2 = environment.scrollingModifier2;
     rainbowModifier1 = environment.rainbowModifier1;
+    console.log('fromSnapshot', new Date(matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime).toString());
 }
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
@@ -595,7 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 function initializeElements() {
-    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 40, 20, Date.now());
+    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
     textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
         fontSize: '12px',
