@@ -27,7 +27,6 @@ export class PointTracker {
 
         currentPointData.incrementVisits();
 
-        // Обработка точек из checkPoints
         if (checkPoints) {
             checkPoints.forEach((checkPointName) => {
                 if (this.lastTimestamps.has(checkPointName)) {
@@ -38,13 +37,11 @@ export class PointTracker {
             });
         }
 
-        // Обработка предшествующей точки
         if (this.lastPoint !== null && this.lastPoint !== pointName) {
             const timeSpent = currentTime - this.lastTimestamps.get(this.lastPoint)!;
             currentPointData.updateTransition(this.lastPoint + " (previous)", timeSpent);
         }
 
-        // Обновление последнего времени посещения точки
         this.lastTimestamps.set(pointName, currentTime);
         this.lastPoint = pointName;
     }
@@ -54,11 +51,11 @@ export class PointTracker {
 
         this.points.forEach((data, point) => {
             reportLines.push(
-                `${chalk.green('Point: ' + point)}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${chalk.red(data.averageIterationTime().toFixed(2))}ms`
+                `${chalk.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk.red(data.averageIterationTime().toFixed(2))}ms`
             );
             data.transitions.forEach((transitionData, fromPoint) => {
                 reportLines.push(
-                    `  Transition from ${chalk.cyan(fromPoint)} to ${chalk.green(point)}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${chalk.red(transitionData.averageTime().toFixed(2))}ms`
+                    `  ${chalk.cyan(fromPoint)} -> ${chalk.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk.red(transitionData.averageTime().toFixed(2))}ms`
                 );
             });
         });

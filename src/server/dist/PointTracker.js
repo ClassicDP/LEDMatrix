@@ -22,7 +22,6 @@ class PointTracker {
             currentPointData.updateIterationTime(timeSinceLastVisit);
         }
         currentPointData.incrementVisits();
-        // Обработка точек из checkPoints
         if (checkPoints) {
             checkPoints.forEach((checkPointName) => {
                 if (this.lastTimestamps.has(checkPointName)) {
@@ -32,21 +31,19 @@ class PointTracker {
                 }
             });
         }
-        // Обработка предшествующей точки
         if (this.lastPoint !== null && this.lastPoint !== pointName) {
             const timeSpent = currentTime - this.lastTimestamps.get(this.lastPoint);
             currentPointData.updateTransition(this.lastPoint + " (previous)", timeSpent);
         }
-        // Обновление последнего времени посещения точки
         this.lastTimestamps.set(pointName, currentTime);
         this.lastPoint = pointName;
     }
     report() {
         const reportLines = [];
         this.points.forEach((data, point) => {
-            reportLines.push(`${chalk_1.default.green('Point: ' + point)}, Total Visits: ${data.totalVisits}, Average Iteration Time: ${chalk_1.default.red(data.averageIterationTime().toFixed(2))}ms`);
+            reportLines.push(`${chalk_1.default.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk_1.default.red(data.averageIterationTime().toFixed(2))}ms`);
             data.transitions.forEach((transitionData, fromPoint) => {
-                reportLines.push(`  Transition from ${chalk_1.default.cyan(fromPoint)} to ${chalk_1.default.green(point)}, Count: ${transitionData.count}, Min Time: ${transitionData.minTime.toFixed(2)}ms, Max Time: ${transitionData.maxTime.toFixed(2)}ms, Avg Time: ${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
+                reportLines.push(`  ${chalk_1.default.cyan(fromPoint)} -> ${chalk_1.default.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
             });
         });
         return reportLines.join("\n");
