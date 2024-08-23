@@ -283,9 +283,8 @@ setInterval(async () => {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = await waitingForSnapshot();
-        // await new Promise(resolve=>setTimeout(resolve, 10000))
-        await page.close();
         await new Promise(resolve => setTimeout(resolve, 50));
+        await page.close();
         tracker.point('page-close');
         await createNewPage();
     }

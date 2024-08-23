@@ -289,9 +289,8 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = yield waitingForSnapshot();
-        // await new Promise(resolve=>setTimeout(resolve, 10000))
-        yield page.close();
         yield new Promise(resolve => setTimeout(resolve, 50));
+        yield page.close();
         tracker.point('page-close');
         yield createNewPage();
     }
