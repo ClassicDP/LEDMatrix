@@ -195,7 +195,6 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
             const { totalHeight, frameCount, width } = frameGroup;
 
             if (page) {
-                await new Promise(resolve => setTimeout(resolve, 20));
                 tracker.point('evaluate-start');
                 await page.evaluate((totalHeight: any) => {
                     const container = document.getElementById('matrix-container');
@@ -286,10 +285,11 @@ setInterval(async () => {
         snapshot = await waitingForSnapshot();
         // await new Promise(resolve=>setTimeout(resolve, 10000))
         await page.close();
+        await new Promise(resolve => setTimeout(resolve, 50));
         tracker.point('page-close');
         await createNewPage();
     }
 
-    console.log(tracker.report()); // Выводим отчет о времени выполнения
+    console.log(tracker.report({minTime: 10, visits: 10}));
     mutex.unlock();
 }, 10000);

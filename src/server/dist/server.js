@@ -207,7 +207,6 @@ function captureAndSendScreenshot(frameGroup) {
                 tracker.point('screenshot-attempt-start');
                 const { totalHeight, frameCount, width } = frameGroup;
                 if (page) {
-                    yield new Promise(resolve => setTimeout(resolve, 20));
                     tracker.point('evaluate-start');
                     yield page.evaluate((totalHeight) => {
                         const container = document.getElementById('matrix-container');
@@ -292,10 +291,11 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
         snapshot = yield waitingForSnapshot();
         // await new Promise(resolve=>setTimeout(resolve, 10000))
         yield page.close();
+        yield new Promise(resolve => setTimeout(resolve, 50));
         tracker.point('page-close');
         yield createNewPage();
     }
-    console.log(tracker.report()); // Выводим отчет о времени выполнения
+    console.log(tracker.report({ minTime: 10, visits: 10 }));
     mutex.unlock();
 }), 10000);
 //# sourceMappingURL=server.js.map

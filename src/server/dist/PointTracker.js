@@ -38,13 +38,20 @@ class PointTracker {
         this.lastTimestamps.set(pointName, currentTime);
         this.lastPoint = pointName;
     }
-    report() {
+    report(filter = {}) {
         const reportLines = [];
+        const minTimeFilter = filter.minTime || 0;
+        const minVisitsFilter = filter.visits || 0;
         this.points.forEach((data, point) => {
-            reportLines.push(`${chalk_1.default.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk_1.default.red(data.averageIterationTime().toFixed(2))}ms`);
-            data.transitions.forEach((transitionData, fromPoint) => {
-                reportLines.push(`  ${chalk_1.default.cyan(fromPoint)} -> ${chalk_1.default.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
-            });
+            const avgTime = data.averageIterationTime();
+            if (avgTime >= minTimeFilter && data.totalVisits >= minVisitsFilter) {
+                reportLines.push(`${chalk_1.default.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk_1.default.red(avgTime.toFixed(2))}ms`);
+                data.transitions.forEach((transitionData, fromPoint) => {
+                    if (transitionData.averageTime() >= minTimeFilter) {
+                        reportLines.push(`  ${chalk_1.default.cyan(fromPoint)} -> ${chalk_1.default.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
+                    }
+                });
+            }
         });
         return reportLines.join("\n");
     }

@@ -1,5 +1,10 @@
 import chalk from 'chalk';
 
+interface ReportFilter {
+    minTime?: number;
+    visits?: number;
+}
+
 export class PointTracker {
     private points: Map<string, PointData>;
     private lastTimestamps: Map<string, number>;
@@ -46,18 +51,27 @@ export class PointTracker {
         this.lastPoint = pointName;
     }
 
-    report(): string {
+    report(filter: ReportFilter = {}): string {
         const reportLines: string[] = [];
+        const minTimeFilter = filter.minTime || 0;
+        const minVisitsFilter = filter.visits || 0;
 
         this.points.forEach((data, point) => {
-            reportLines.push(
-                `${chalk.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk.red(data.averageIterationTime().toFixed(2))}ms`
-            );
-            data.transitions.forEach((transitionData, fromPoint) => {
+            const avgTime = data.averageIterationTime();
+
+            if (avgTime >= minTimeFilter && data.totalVisits >= minVisitsFilter) {
                 reportLines.push(
-                    `  ${chalk.cyan(fromPoint)} -> ${chalk.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk.red(transitionData.averageTime().toFixed(2))}ms`
+                    `${chalk.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk.red(avgTime.toFixed(2))}ms`
                 );
-            });
+
+                data.transitions.forEach((transitionData, fromPoint) => {
+                    if (transitionData.averageTime() >= minTimeFilter) {
+                        reportLines.push(
+                            `  ${chalk.cyan(fromPoint)} -> ${chalk.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk.red(transitionData.averageTime().toFixed(2))}ms`
+                        );
+                    }
+                });
+            }
         });
 
         return reportLines.join("\n");
