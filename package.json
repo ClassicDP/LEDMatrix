@@ -4,9 +4,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack serve --config webpack.config.js",
-    "build": "webpack"
+    "render": "npm run render --prefix src/render",
+    "player": "npm run player --prefix src/player",
+    "server": "npm run server --prefix src/server",
+    "dev": "concurrently \"npm run render\" \"npm run player\" \"npm run server\""
   },
   "keywords": [],
   "author": "",
@@ -38,7 +39,8 @@
     "selenium-webdriver": "^4.23.0",
     "sharp": "^0.33.4",
     "undici-types": "^6.11.1",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "concurrently": "^8.2.2"
   },
   "description": ""
 }

@@ -3,6 +3,7 @@ import chalk from 'chalk';
 interface ReportFilter {
     minTime?: number;
     visits?: number;
+    requireDependencies?: boolean;
 }
 
 export class PointTracker {
@@ -36,8 +37,7 @@ export class PointTracker {
             checkPoints.forEach((checkPointName) => {
                 if (this.lastTimestamps.has(checkPointName)) {
                     const timeSpent = currentTime - this.lastTimestamps.get(checkPointName)!;
-                    const checkPointData = this.points.get(pointName)!;
-                    checkPointData.updateTransition(checkPointName, timeSpent);
+                    currentPointData.updateTransition(checkPointName, timeSpent);
                 }
             });
         }
@@ -55,26 +55,47 @@ export class PointTracker {
         const reportLines: string[] = [];
         const minTimeFilter = filter.minTime || 0;
         const minVisitsFilter = filter.visits || 0;
+        const requireDependencies = filter.requireDependencies || false;
 
+        // Фильтрация точек
         this.points.forEach((data, point) => {
             const avgTime = data.averageIterationTime();
 
             if (avgTime >= minTimeFilter && data.totalVisits >= minVisitsFilter) {
-                reportLines.push(
-                    `${chalk.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk.red(avgTime.toFixed(2))}ms`
-                );
+                // Фильтрация переходов
+                const filteredTransitions = new Map<string, TransitionData>();
 
                 data.transitions.forEach((transitionData, fromPoint) => {
                     if (transitionData.averageTime() >= minTimeFilter) {
-                        reportLines.push(
-                            `  ${chalk.cyan(fromPoint)} -> ${chalk.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk.red(transitionData.averageTime().toFixed(2))}ms`
-                        );
+                        filteredTransitions.set(fromPoint, transitionData);
                     }
                 });
+
+                // Добавление в отчет только если есть переходы или не требуется обязательных зависимостей
+                if (!requireDependencies || filteredTransitions.size > 0) {
+                    this.addPointWithFilteredTransitions(reportLines, point, data, filteredTransitions);
+                }
             }
         });
 
         return reportLines.join("\n");
+    }
+
+    private addPointWithFilteredTransitions(
+        reportLines: string[],
+        point: string,
+        data: PointData,
+        filteredTransitions: Map<string, TransitionData>
+    ) {
+        reportLines.push(
+            `${chalk.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk.red(data.averageIterationTime().toFixed(2))}ms`
+        );
+
+        filteredTransitions.forEach((transitionData, fromPoint) => {
+            reportLines.push(
+                `  ${chalk.cyan(fromPoint)} -> ${chalk.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk.red(transitionData.averageTime().toFixed(2))}ms`
+            );
+        });
     }
 }
 

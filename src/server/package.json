@@ -1,3 +1,8 @@
 {
-  "type": "commonjs"
+  "name": "server",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "server": "node ./dist/server.js"
+  }
 }

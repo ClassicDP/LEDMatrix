@@ -26,8 +26,7 @@ class PointTracker {
             checkPoints.forEach((checkPointName) => {
                 if (this.lastTimestamps.has(checkPointName)) {
                     const timeSpent = currentTime - this.lastTimestamps.get(checkPointName);
-                    const checkPointData = this.points.get(pointName);
-                    checkPointData.updateTransition(checkPointName, timeSpent);
+                    currentPointData.updateTransition(checkPointName, timeSpent);
                 }
             });
         }
@@ -42,18 +41,31 @@ class PointTracker {
         const reportLines = [];
         const minTimeFilter = filter.minTime || 0;
         const minVisitsFilter = filter.visits || 0;
+        const requireDependencies = filter.requireDependencies || false;
+        // Фильтрация точек
         this.points.forEach((data, point) => {
             const avgTime = data.averageIterationTime();
             if (avgTime >= minTimeFilter && data.totalVisits >= minVisitsFilter) {
-                reportLines.push(`${chalk_1.default.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk_1.default.red(avgTime.toFixed(2))}ms`);
+                // Фильтрация переходов
+                const filteredTransitions = new Map();
                 data.transitions.forEach((transitionData, fromPoint) => {
                     if (transitionData.averageTime() >= minTimeFilter) {
-                        reportLines.push(`  ${chalk_1.default.cyan(fromPoint)} -> ${chalk_1.default.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
+                        filteredTransitions.set(fromPoint, transitionData);
                     }
                 });
+                // Добавление в отчет только если есть переходы или не требуется обязательных зависимостей
+                if (!requireDependencies || filteredTransitions.size > 0) {
+                    this.addPointWithFilteredTransitions(reportLines, point, data, filteredTransitions);
+                }
             }
         });
         return reportLines.join("\n");
+    }
+    addPointWithFilteredTransitions(reportLines, point, data, filteredTransitions) {
+        reportLines.push(`${chalk_1.default.green(point)}: Visits=${data.totalVisits}, AvgTime=${chalk_1.default.red(data.averageIterationTime().toFixed(2))}ms`);
+        filteredTransitions.forEach((transitionData, fromPoint) => {
+            reportLines.push(`  ${chalk_1.default.cyan(fromPoint)} -> ${chalk_1.default.green(point)}: Count=${transitionData.count}, Min=${transitionData.minTime.toFixed(2)}ms, Max=${transitionData.maxTime.toFixed(2)}ms, Avg=${chalk_1.default.red(transitionData.averageTime().toFixed(2))}ms`);
+        });
     }
 }
 exports.PointTracker = PointTracker;

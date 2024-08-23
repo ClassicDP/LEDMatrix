@@ -1,33 +1,9 @@
 import path from 'path';
-import { Page, webkit, Browser, BrowserContext } from 'playwright';
+import {Browser, BrowserContext, Page, webkit} from 'playwright';
 import http from 'http';
-import WebSocket, { WebSocketServer } from 'ws';
-import { PointTracker } from './PointTracker'; // Подключаем класс PointTracker
-
-class Mutex {
-    private _queue: (() => void)[] = [];
-    private _lock = false;
-
-    lock(): Promise<void> {
-        return new Promise((res) => {
-            if (!this._lock) {
-                this._lock = true;
-                res();
-            } else {
-                this._queue.push(res);
-            }
-        });
-    }
-
-    unlock() {
-        if (this._queue.length > 0) {
-            const func = this._queue.shift();
-            if (func) func();
-        } else {
-            this._lock = false;
-        }
-    }
-}
+import WebSocket, {WebSocketServer} from 'ws';
+import {PointTracker} from './PointTracker';
+import {Mutex} from "./mutex"; // Подключаем класс PointTracker
 
 interface FrameGroup {
     startTime: number;
@@ -45,7 +21,8 @@ let page: Page | null = null;
 let browser: Browser;
 let context: BrowserContext;
 let lastTime: number | undefined;
-const mutex = new Mutex();
+// const mutex = new Mutex();
+const frameRequestMutex = new Mutex();
 
 let clientCounter = 0;
 let startScreenshotTime = 0;
@@ -87,7 +64,7 @@ wss.on('connection', async (ws: WebSocket) => {
     } else if (lastTime) {
         ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
     }
-
+    // await frameRequestMutex.lock();
     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
 
     ws.once('close', () => {
@@ -106,7 +83,6 @@ wss.on('connection', async (ws: WebSocket) => {
         if (request.frameGroup) {
             tracker.point('generate-next-group-end', ['generate-next-group-start']);
             wsRender = ws;
-            await mutex.lock();
             generateNextGroupEnd = Date.now();
             positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart;
             const frameGroup = request.frameGroup;
@@ -123,18 +99,16 @@ wss.on('connection', async (ws: WebSocket) => {
                 await captureAndSendScreenshot(frameGroup);
                 endScreenshotTime = Date.now();
                 tracker.point('render-end', ['render-start']);
+                frameRequestMutex.unlock();
 
-                mutex.unlock();
-
-                let deltaT = frameGroup.startTime - Date.now() - 1000;
+                let deltaT = frameGroup.startTime - Date.now() - 300;
                 const delay = Math.max(0, deltaT);
                 setTimeout(async () => {
-                    await mutex.lock();
                     tracker.point('generate-next-group-start');
+                    await frameRequestMutex.lock();
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
                     generateNextGroupStart = Date.now();
-                    mutex.unlock();
-                }, delay / 2);
+                }, delay);
             } else {
                 console.log('Page is not available');
             }
@@ -149,11 +123,11 @@ wss.on('connection', async (ws: WebSocket) => {
 
 (async () => {
     tracker.point('initialization-start');
-    await mutex.lock();
+    // await mutex.lock();
     browser = await webkit.launch();
     context = await browser.newContext();
     await createNewPage();
-    mutex.unlock();
+    // mutex.unlock();
     tracker.point('initialization-end', ['initialization-start']);
 })();
 
@@ -168,13 +142,13 @@ async function createNewPage() {
         tracker.point('page-loading-end', ['page-loading-start']);
 
         page.on('console', async (msg: { args: () => any; }) => {
-            await mutex.lock();
+            // await mutex.lock();
             const msgArgs = msg.args();
             try {
                 const logValues = await Promise.all(msgArgs.map(async (arg: { jsonValue: () => any; }) => await arg.jsonValue()));
                 console.log("::", ...logValues);
             } catch (e) {}
-            mutex.unlock();
+            // mutex.unlock();
         });
 
         console.log('New page loaded');
@@ -270,7 +244,7 @@ server.listen(8081, () => {
 
 // Логирование использования памяти каждые 30 секунд
 setInterval(async () => {
-    await mutex.lock();
+    await frameRequestMutex.lock();
     const memoryUsage = process.memoryUsage();
     // console.log(new Date().toLocaleString());
     // console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
@@ -283,12 +257,12 @@ setInterval(async () => {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = await waitingForSnapshot();
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // await new Promise(resolve => setTimeout(resolve, 100));
         await page.close();
         tracker.point('page-close');
         await createNewPage();
     }
 
-    console.log(tracker.report({minTime: 10, visits: 10}));
-    mutex.unlock();
+    frameRequestMutex.unlock();
+    console.log(tracker.report({minTime: 10, requireDependencies: true}));
 }, 10000);

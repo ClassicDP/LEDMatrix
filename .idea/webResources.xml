@@ -11,6 +11,7 @@
             <path value="file://$PROJECT_DIR$" />
             <path value="file://$PROJECT_DIR$/src/selenium" />
             <path value="file://$PROJECT_DIR$/src/lib" />
+            <path value="file://$PROJECT_DIR$/src/render" />
           </resourceRoots>
         </entryData>
       </entry>

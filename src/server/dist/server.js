@@ -39,34 +39,8 @@ const path_1 = __importDefault(require("path"));
 const playwright_1 = require("playwright");
 const http_1 = __importDefault(require("http"));
 const ws_1 = __importStar(require("ws"));
-const PointTracker_1 = require("./PointTracker"); // Подключаем класс PointTracker
-class Mutex {
-    constructor() {
-        this._queue = [];
-        this._lock = false;
-    }
-    lock() {
-        return new Promise((res) => {
-            if (!this._lock) {
-                this._lock = true;
-                res();
-            }
-            else {
-                this._queue.push(res);
-            }
-        });
-    }
-    unlock() {
-        if (this._queue.length > 0) {
-            const func = this._queue.shift();
-            if (func)
-                func();
-        }
-        else {
-            this._lock = false;
-        }
-    }
-}
+const PointTracker_1 = require("./PointTracker");
+const mutex_1 = require("./mutex"); // Подключаем класс PointTracker
 const server = http_1.default.createServer();
 const wss = new ws_1.WebSocketServer({ server });
 let clients = [];
@@ -74,7 +48,8 @@ let page = null;
 let browser;
 let context;
 let lastTime;
-const mutex = new Mutex();
+// const mutex = new Mutex();
+const frameRequestMutex = new mutex_1.Mutex();
 let clientCounter = 0;
 let startScreenshotTime = 0;
 let endScreenshotTime = 0;
@@ -111,6 +86,7 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
     else if (lastTime) {
         ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
     }
+    // await frameRequestMutex.lock();
     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
     ws.once('close', () => {
         clients = clients.filter((client) => client !== ws);
@@ -126,7 +102,6 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
         if (request.frameGroup) {
             tracker.point('generate-next-group-end', ['generate-next-group-start']);
             wsRender = ws;
-            yield mutex.lock();
             generateNextGroupEnd = Date.now();
             positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart;
             const frameGroup = request.frameGroup;
@@ -140,16 +115,15 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
                 yield captureAndSendScreenshot(frameGroup);
                 endScreenshotTime = Date.now();
                 tracker.point('render-end', ['render-start']);
-                mutex.unlock();
-                let deltaT = frameGroup.startTime - Date.now() - 1000;
+                frameRequestMutex.unlock();
+                let deltaT = frameGroup.startTime - Date.now() - 300;
                 const delay = Math.max(0, deltaT);
                 setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
-                    yield mutex.lock();
                     tracker.point('generate-next-group-start');
+                    yield frameRequestMutex.lock();
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
                     generateNextGroupStart = Date.now();
-                    mutex.unlock();
-                }), delay / 2);
+                }), delay);
             }
             else {
                 console.log('Page is not available');
@@ -163,11 +137,11 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
 }));
 (() => __awaiter(void 0, void 0, void 0, function* () {
     tracker.point('initialization-start');
-    yield mutex.lock();
+    // await mutex.lock();
     browser = yield playwright_1.webkit.launch();
     context = yield browser.newContext();
     yield createNewPage();
-    mutex.unlock();
+    // mutex.unlock();
     tracker.point('initialization-end', ['initialization-start']);
 }))();
 function createNewPage() {
@@ -180,14 +154,14 @@ function createNewPage() {
             yield page.goto(`file://${filePath}`, { waitUntil: 'load' });
             tracker.point('page-loading-end', ['page-loading-start']);
             page.on('console', (msg) => __awaiter(this, void 0, void 0, function* () {
-                yield mutex.lock();
+                // await mutex.lock();
                 const msgArgs = msg.args();
                 try {
                     const logValues = yield Promise.all(msgArgs.map((arg) => __awaiter(this, void 0, void 0, function* () { return yield arg.jsonValue(); })));
                     console.log("::", ...logValues);
                 }
                 catch (e) { }
-                mutex.unlock();
+                // mutex.unlock();
             }));
             console.log('New page loaded');
             tracker.point('page-creation-end', ['page-creation-start']);
@@ -277,7 +251,7 @@ server.listen(8081, () => {
 });
 // Логирование использования памяти каждые 30 секунд
 setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
-    yield mutex.lock();
+    yield frameRequestMutex.lock();
     const memoryUsage = process.memoryUsage();
     // console.log(new Date().toLocaleString());
     // console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
@@ -289,12 +263,12 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = yield waitingForSnapshot();
-        yield new Promise(resolve => setTimeout(resolve, 50));
+        // await new Promise(resolve => setTimeout(resolve, 100));
         yield page.close();
         tracker.point('page-close');
         yield createNewPage();
     }
-    console.log(tracker.report({ minTime: 10, visits: 10 }));
-    mutex.unlock();
+    frameRequestMutex.unlock();
+    console.log(tracker.report({ minTime: 10, requireDependencies: true }));
 }), 10000);
 //# sourceMappingURL=server.js.map

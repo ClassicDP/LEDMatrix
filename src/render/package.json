@@ -1,0 +1,9 @@
+{
+  "name": "render",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "render": "npx webpack --config webpack.config.js --watch --progress --mode=development"
+  },
+  "private": true
+}

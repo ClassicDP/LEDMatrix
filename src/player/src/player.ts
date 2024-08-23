@@ -45,25 +45,57 @@ worker.onmessage = (event) => {
     });
 };
 
-const ws = new WebSocket('ws://localhost:8081');
+let ws: WebSocket;
+let reconnectInterval: string | number | NodeJS.Timeout | null | undefined
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+function connectWebSocket() {
+    ws = new WebSocket('ws://localhost:8081');
 
-    if (Array.isArray(data)) {
-        // Если пришел массив кадров, обрабатываем его
-        data.forEach((frame: Frame) => {
-            frameBuffer.push(frame);
-            if (frameBuffer.length > bufferLimit) {
-                frameBuffer.shift();
-            }
-            frameCount++;
-        });
-    } else if (data.imageBuffer) {
-        // Если пришла FrameGroup, передаем данные на нарезку в Worker
-        worker.postMessage(data);
+    ws.onopen = async () => {
+        console.log('WebSocket connected');
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+        }
+        await displayFrame();
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (Array.isArray(data)) {
+            // Если пришел массив кадров, обрабатываем его
+            data.forEach((frame: Frame) => {
+                frameBuffer.push(frame);
+                if (frameBuffer.length > bufferLimit) {
+                    frameBuffer.shift();
+                }
+                frameCount++;
+            });
+        } else if (data.imageBuffer) {
+            // Если пришла FrameGroup, передаем данные на нарезку в Worker
+            worker.postMessage(data);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket connection closed, attempting to reconnect...');
+        if (!reconnectInterval) {
+            reconnectInterval = setInterval(reconnectWebSocket, 1000);
+        }
+    };
+}
+
+function reconnectWebSocket() {
+    if (ws.readyState === WebSocket.CLOSED) {
+        console.log('Attempting to reconnect to WebSocket...');
+        connectWebSocket();
     }
-};
+}
 
 let fps = 0;
 
@@ -129,14 +161,6 @@ setInterval(() => {
     fps = 0;
 }, 1000);
 
-ws.onopen = async () => {
-    await displayFrame();
-};
-
-ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-};
-
 function drawPixelGrid(scale: number) {
     ctx.strokeStyle = 'white'; // Можно вернуть на white после тестирования
     ctx.lineWidth = 0.1;
@@ -153,3 +177,6 @@ function drawPixelGrid(scale: number) {
         ctx.stroke();
     }
 }
+
+// Запуск WebSocket подключения
+connectWebSocket();

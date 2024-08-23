@@ -34,24 +34,51 @@ worker.onmessage = (event) => {
         frameCount++;
     });
 };
-const ws = new WebSocket('ws://localhost:8081');
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (Array.isArray(data)) {
-        // Если пришел массив кадров, обрабатываем его
-        data.forEach((frame) => {
-            frameBuffer.push(frame);
-            if (frameBuffer.length > bufferLimit) {
-                frameBuffer.shift();
-            }
-            frameCount++;
-        });
+let ws;
+let reconnectInterval;
+function connectWebSocket() {
+    ws = new WebSocket('ws://localhost:8081');
+    ws.onopen = () => __awaiter(this, void 0, void 0, function* () {
+        console.log('WebSocket connected');
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+        }
+        yield displayFrame();
+    });
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (Array.isArray(data)) {
+            // Если пришел массив кадров, обрабатываем его
+            data.forEach((frame) => {
+                frameBuffer.push(frame);
+                if (frameBuffer.length > bufferLimit) {
+                    frameBuffer.shift();
+                }
+                frameCount++;
+            });
+        }
+        else if (data.imageBuffer) {
+            // Если пришла FrameGroup, передаем данные на нарезку в Worker
+            worker.postMessage(data);
+        }
+    };
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+    ws.onclose = () => {
+        console.log('WebSocket connection closed, attempting to reconnect...');
+        if (!reconnectInterval) {
+            reconnectInterval = setInterval(reconnectWebSocket, 1000);
+        }
+    };
+}
+function reconnectWebSocket() {
+    if (ws.readyState === WebSocket.CLOSED) {
+        console.log('Attempting to reconnect to WebSocket...');
+        connectWebSocket();
     }
-    else if (data.imageBuffer) {
-        // Если пришла FrameGroup, передаем данные на нарезку в Worker
-        worker.postMessage(data);
-    }
-};
+}
 let fps = 0;
 function displayFrame() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -106,12 +133,6 @@ setInterval(() => {
     fpsSpan.textContent = fps.toString();
     fps = 0;
 }, 1000);
-ws.onopen = () => __awaiter(void 0, void 0, void 0, function* () {
-    yield displayFrame();
-});
-ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-};
 function drawPixelGrid(scale) {
     ctx.strokeStyle = 'white'; // Можно вернуть на white после тестирования
     ctx.lineWidth = 0.1;
@@ -128,4 +149,6 @@ function drawPixelGrid(scale) {
         ctx.stroke();
     }
 }
+// Запуск WebSocket подключения
+connectWebSocket();
 //# sourceMappingURL=player.js.map

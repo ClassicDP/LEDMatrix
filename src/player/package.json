@@ -1,0 +1,8 @@
+{
+  "name": "player",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "player": "npx webpack serve"
+  }
+}
