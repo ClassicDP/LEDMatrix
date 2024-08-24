@@ -41,6 +41,11 @@ const http_1 = __importDefault(require("http"));
 const ws_1 = __importStar(require("ws"));
 const PointTracker_1 = require("./PointTracker");
 const mutex_1 = require("./mutex"); // Подключаем класс PointTracker
+function wait(ms) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    });
+}
 const server = http_1.default.createServer();
 const wss = new ws_1.WebSocketServer({ server });
 let clients = [];
@@ -48,18 +53,14 @@ let page = null;
 let browser;
 let context;
 let lastTime;
-// const mutex = new Mutex();
 const frameRequestMutex = new mutex_1.Mutex();
 let clientCounter = 0;
-let startScreenshotTime = 0;
-let endScreenshotTime = 0;
 let generateNextGroupStart = 0;
-let generateNextGroupEnd = 0;
-let positiveNextGroupTime = 0;
 let wsRender;
 let initOnce = false;
 let resolveFunc;
 let snapshot;
+let generateNextGroupTimeout = null; // Переменная для хранения таймаута
 // Инициализация PointTracker
 const tracker = new PointTracker_1.PointTracker();
 function waitingForSnapshot() {
@@ -86,41 +87,50 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
     else if (lastTime) {
         ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
     }
-    // await frameRequestMutex.lock();
-    ws.send(JSON.stringify({ command: 'generateNextGroup' }));
     ws.once('close', () => {
         clients = clients.filter((client) => client !== ws);
         console.log(`Client disconnected: ${clientId}`);
         tracker.point('client-disconnected');
+        // Очищаем таймаут при закрытии WebSocket
+        if (generateNextGroupTimeout) {
+            clearTimeout(generateNextGroupTimeout);
+            generateNextGroupTimeout = null;
+        }
     });
     ws.on('message', (message) => __awaiter(void 0, void 0, void 0, function* () {
         tracker.point('message-received');
         const request = JSON.parse(message);
+        if (request.client == 'renderer') {
+            frameRequestMutex.unlock('page reloaded');
+            yield frameRequestMutex.lock('generateNextGroup after new page init');
+            ws.send(JSON.stringify({ command: 'generateNextGroup' }));
+        }
         if (request.command == 'loadSnapshot' && resolveFunc) {
             resolveFunc(request.value);
         }
         if (request.frameGroup) {
             tracker.point('generate-next-group-end', ['generate-next-group-start']);
             wsRender = ws;
-            generateNextGroupEnd = Date.now();
-            positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart;
             const frameGroup = request.frameGroup;
             if (page) {
                 tracker.point('resize-start');
                 yield page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
                 tracker.point('resize-end', ['resize-start']);
                 lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
-                startScreenshotTime = Date.now();
                 tracker.point('render-start');
                 yield captureAndSendScreenshot(frameGroup);
-                endScreenshotTime = Date.now();
                 tracker.point('render-end', ['render-start']);
-                frameRequestMutex.unlock();
+                frameRequestMutex.unlock('render-end');
                 let deltaT = frameGroup.startTime - Date.now() - 300;
                 const delay = Math.max(0, deltaT);
-                setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
+                // Очищаем предыдущий таймаут, если он существует
+                if (generateNextGroupTimeout) {
+                    clearTimeout(generateNextGroupTimeout);
+                }
+                // Устанавливаем новый таймаут и сохраняем его идентификатор
+                generateNextGroupTimeout = setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
                     tracker.point('generate-next-group-start');
-                    yield frameRequestMutex.lock();
+                    yield frameRequestMutex.lock('generateNextGroup');
                     ws.send(JSON.stringify({ command: 'generateNextGroup' }));
                     generateNextGroupStart = Date.now();
                 }), delay);
@@ -137,11 +147,9 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
 }));
 (() => __awaiter(void 0, void 0, void 0, function* () {
     tracker.point('initialization-start');
-    // await mutex.lock();
     browser = yield playwright_1.webkit.launch();
     context = yield browser.newContext();
     yield createNewPage();
-    // mutex.unlock();
     tracker.point('initialization-end', ['initialization-start']);
 }))();
 function createNewPage() {
@@ -154,14 +162,13 @@ function createNewPage() {
             yield page.goto(`file://${filePath}`, { waitUntil: 'load' });
             tracker.point('page-loading-end', ['page-loading-start']);
             page.on('console', (msg) => __awaiter(this, void 0, void 0, function* () {
-                // await mutex.lock();
                 const msgArgs = msg.args();
                 try {
                     const logValues = yield Promise.all(msgArgs.map((arg) => __awaiter(this, void 0, void 0, function* () { return yield arg.jsonValue(); })));
                     console.log("::", ...logValues);
                 }
-                catch (e) { }
-                // mutex.unlock();
+                catch (e) {
+                }
             }));
             console.log('New page loaded');
             tracker.point('page-creation-end', ['page-creation-start']);
@@ -179,7 +186,7 @@ function captureAndSendScreenshot(frameGroup) {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 tracker.point('screenshot-attempt-start');
-                const { totalHeight, frameCount, width } = frameGroup;
+                const { totalHeight, width } = frameGroup;
                 if (page) {
                     tracker.point('evaluate-start');
                     yield page.evaluate((totalHeight) => {
@@ -251,24 +258,15 @@ server.listen(8081, () => {
 });
 // Логирование использования памяти каждые 30 секунд
 setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
-    yield frameRequestMutex.lock();
+    yield frameRequestMutex.lock('awaiting for close page');
     const memoryUsage = process.memoryUsage();
-    // console.log(new Date().toLocaleString());
-    // console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`GenerateNextGroup: ${positiveNextGroupTime}`);
-    // console.log(`Screenshot time: ${endScreenshotTime - startScreenshotTime}`);
     if (page && wsRender) {
         wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
         snapshot = yield waitingForSnapshot();
-        // await new Promise(resolve => setTimeout(resolve, 100));
         yield page.close();
         tracker.point('page-close');
         yield createNewPage();
     }
-    frameRequestMutex.unlock();
-    console.log(tracker.report({ minTime: 10, requireDependencies: true }));
-}), 10000);
+    frameRequestMutex.unlock('memory check completed');
+}), 2000);
 //# sourceMappingURL=server.js.map

@@ -5,6 +5,10 @@ import WebSocket, {WebSocketServer} from 'ws';
 import {PointTracker} from './PointTracker';
 import {Mutex} from "./mutex"; // Подключаем класс PointTracker
 
+async function wait(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 interface FrameGroup {
     startTime: number;
     frameInterval: number;
@@ -15,28 +19,24 @@ interface FrameGroup {
 }
 
 const server = http.createServer();
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({server});
 let clients: WebSocket[] = [];
 let page: Page | null = null;
 let browser: Browser;
 let context: BrowserContext;
 let lastTime: number | undefined;
-// const mutex = new Mutex();
 const frameRequestMutex = new Mutex();
 
 let clientCounter = 0;
-let startScreenshotTime = 0;
-let endScreenshotTime = 0;
 let generateNextGroupStart = 0;
-let generateNextGroupEnd = 0;
-
-let positiveNextGroupTime = 0;
 
 let wsRender: WebSocket;
 let initOnce: boolean = false;
 
 let resolveFunc: ((value: string) => void) | undefined;
 let snapshot: string | undefined;
+
+let generateNextGroupTimeout: NodeJS.Timeout | null = null;  // Переменная для хранения таймаута
 
 // Инициализация PointTracker
 const tracker = new PointTracker();
@@ -55,27 +55,37 @@ wss.on('connection', async (ws: WebSocket) => {
 
     if (!initOnce) {
         initOnce = true;
-        ws.send(JSON.stringify({ command: 'initializeElements' }));
+        ws.send(JSON.stringify({command: 'initializeElements'}));
     }
     if (snapshot) {
-        ws.send(JSON.stringify({ command: 'loadSnapshot', value: snapshot }));
+        ws.send(JSON.stringify({command: 'loadSnapshot', value: snapshot}));
         snapshot = undefined;
         console.log('snapshot sent');
     } else if (lastTime) {
-        ws.send(JSON.stringify({ command: 'setStartTime', value: lastTime }));
+        ws.send(JSON.stringify({command: 'setStartTime', value: lastTime}));
     }
-    // await frameRequestMutex.lock();
-    ws.send(JSON.stringify({ command: 'generateNextGroup' }));
 
     ws.once('close', () => {
         clients = clients.filter((client) => client !== ws);
         console.log(`Client disconnected: ${clientId}`);
         tracker.point('client-disconnected');
+
+        // Очищаем таймаут при закрытии WebSocket
+        if (generateNextGroupTimeout) {
+            clearTimeout(generateNextGroupTimeout);
+            generateNextGroupTimeout = null;
+        }
     });
 
     ws.on('message', async (message: string) => {
         tracker.point('message-received');
         const request = JSON.parse(message);
+
+        if (request.client == 'renderer') {
+            frameRequestMutex.unlock('page reloaded');
+            await frameRequestMutex.lock('generateNextGroup after new page init');
+            ws.send(JSON.stringify({command: 'generateNextGroup'}));
+        }
 
         if (request.command == 'loadSnapshot' && resolveFunc) {
             resolveFunc(request.value);
@@ -83,30 +93,33 @@ wss.on('connection', async (ws: WebSocket) => {
         if (request.frameGroup) {
             tracker.point('generate-next-group-end', ['generate-next-group-start']);
             wsRender = ws;
-            generateNextGroupEnd = Date.now();
-            positiveNextGroupTime = generateNextGroupEnd - generateNextGroupStart;
             const frameGroup = request.frameGroup;
 
             if (page) {
                 tracker.point('resize-start');
-                await page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
+                await page.setViewportSize({width: frameGroup.width, height: frameGroup.totalHeight});
                 tracker.point('resize-end', ['resize-start']);
 
                 lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
 
-                startScreenshotTime = Date.now();
                 tracker.point('render-start');
                 await captureAndSendScreenshot(frameGroup);
-                endScreenshotTime = Date.now();
                 tracker.point('render-end', ['render-start']);
-                frameRequestMutex.unlock();
+                frameRequestMutex.unlock('render-end');
 
                 let deltaT = frameGroup.startTime - Date.now() - 300;
                 const delay = Math.max(0, deltaT);
-                setTimeout(async () => {
+
+                // Очищаем предыдущий таймаут, если он существует
+                if (generateNextGroupTimeout) {
+                    clearTimeout(generateNextGroupTimeout);
+                }
+
+                // Устанавливаем новый таймаут и сохраняем его идентификатор
+                generateNextGroupTimeout = setTimeout(async () => {
                     tracker.point('generate-next-group-start');
-                    await frameRequestMutex.lock();
-                    ws.send(JSON.stringify({ command: 'generateNextGroup' }));
+                    await frameRequestMutex.lock('generateNextGroup');
+                    ws.send(JSON.stringify({command: 'generateNextGroup'}));
                     generateNextGroupStart = Date.now();
                 }, delay);
             } else {
@@ -123,11 +136,9 @@ wss.on('connection', async (ws: WebSocket) => {
 
 (async () => {
     tracker.point('initialization-start');
-    // await mutex.lock();
     browser = await webkit.launch();
     context = await browser.newContext();
     await createNewPage();
-    // mutex.unlock();
     tracker.point('initialization-end', ['initialization-start']);
 })();
 
@@ -138,17 +149,18 @@ async function createNewPage() {
 
         const filePath = path.join(__dirname, '../../../src/render/dist/index.html');
         tracker.point('page-loading-start');
-        await page.goto(`file://${filePath}`, { waitUntil: 'load' });
+        await page.goto(`file://${filePath}`, {waitUntil: 'load'});
         tracker.point('page-loading-end', ['page-loading-start']);
 
         page.on('console', async (msg: { args: () => any; }) => {
-            // await mutex.lock();
             const msgArgs = msg.args();
             try {
-                const logValues = await Promise.all(msgArgs.map(async (arg: { jsonValue: () => any; }) => await arg.jsonValue()));
+                const logValues = await Promise.all(msgArgs.map(async (arg: {
+                    jsonValue: () => any;
+                }) => await arg.jsonValue()));
                 console.log("::", ...logValues);
-            } catch (e) {}
-            // mutex.unlock();
+            } catch (e) {
+            }
         });
 
         console.log('New page loaded');
@@ -166,7 +178,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             tracker.point('screenshot-attempt-start');
-            const { totalHeight, frameCount, width } = frameGroup;
+            const {totalHeight, width} = frameGroup;
 
             if (page) {
                 tracker.point('evaluate-start');
@@ -179,7 +191,7 @@ async function captureAndSendScreenshot(frameGroup: FrameGroup) {
                 tracker.point('evaluate-end', ['evaluate-start']);
 
                 tracker.point('selector-wait-start');
-                const elementHandle = await page.waitForSelector('#matrix-container', { state: 'visible' });
+                const elementHandle = await page.waitForSelector('#matrix-container', {state: 'visible'});
                 tracker.point('selector-wait-end', ['selector-wait-start']);
 
                 const boundingBox = await elementHandle.boundingBox();
@@ -244,25 +256,16 @@ server.listen(8081, () => {
 
 // Логирование использования памяти каждые 30 секунд
 setInterval(async () => {
-    await frameRequestMutex.lock();
+    await frameRequestMutex.lock('awaiting for close page');
     const memoryUsage = process.memoryUsage();
-    // console.log(new Date().toLocaleString());
-    // console.log(`RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB`);
-    // console.log(`GenerateNextGroup: ${positiveNextGroupTime}`);
-    // console.log(`Screenshot time: ${endScreenshotTime - startScreenshotTime}`);
 
     if (page && wsRender) {
-        wsRender.send(JSON.stringify({ command: 'getSnapshot' }));
+        wsRender.send(JSON.stringify({command: 'getSnapshot'}));
         snapshot = await waitingForSnapshot();
-        // await new Promise(resolve => setTimeout(resolve, 100));
         await page.close();
         tracker.point('page-close');
         await createNewPage();
     }
 
-    frameRequestMutex.unlock();
-    console.log(tracker.report({minTime: 10, requireDependencies: true}));
-}, 10000);
+    frameRequestMutex.unlock('memory check completed');
+}, 2000);

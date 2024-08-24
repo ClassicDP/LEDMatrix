@@ -563,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'generateNextGroup':
                         if (matrix) {
                             const frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
+                            console.log("generation done sending frameGroup");
                             ws.send(JSON.stringify({ frameGroup }));
                         }
                         break;
@@ -573,6 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'initializeElements':
                         initializeElements();
+                        ws === null || ws === void 0 ? void 0 : ws.send(JSON.stringify({ client: "renderer" }));
                         break;
                     case 'getSnapshot':
                         const snapshot = getSnapshot();
@@ -580,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'loadSnapshot':
                         fromSnapshot(message.value);
+                        ws === null || ws === void 0 ? void 0 : ws.send(JSON.stringify({ client: "renderer" }));
                         break;
                 }
             }

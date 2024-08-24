@@ -76,13 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         ws.onmessage = (event) => {
+
             try {
                 const message: WebSocketCommand = JSON.parse(event.data);
-
                 switch (message.command) {
                     case 'generateNextGroup':
                         if (matrix) {
                             const frameGroup = matrix.generateNextGroup(container, [textElement1!, textElement2!, timeElement!]);
+                            console.log("generation done sending frameGroup");
                             ws!.send(JSON.stringify({ frameGroup }));
                         }
                         break;
@@ -94,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'initializeElements':
                         initializeElements();
+                        ws?.send(JSON.stringify({client: "renderer"}))
                         break;
 
                     case 'getSnapshot':
@@ -103,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     case 'loadSnapshot':
                         fromSnapshot(message.value);
+                        ws?.send(JSON.stringify({client: "renderer"}))
                         break;
 
                 }

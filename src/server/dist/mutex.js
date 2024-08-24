@@ -6,7 +6,9 @@ class Mutex {
         this._queue = [];
         this._lock = false;
     }
-    lock() {
+    lock(logMsg) {
+        if (Mutex.logAllowed && logMsg)
+            console.log("Mutex lock: ", logMsg, !this._lock);
         return new Promise((res) => {
             if (!this._lock) {
                 this._lock = true;
@@ -17,7 +19,9 @@ class Mutex {
             }
         });
     }
-    unlock() {
+    unlock(logMsg) {
+        if (Mutex.logAllowed && logMsg)
+            console.log("Mutex unLock: ", logMsg);
         if (this._queue.length > 0) {
             const func = this._queue.shift();
             if (func)
@@ -29,4 +33,5 @@ class Mutex {
     }
 }
 exports.Mutex = Mutex;
+Mutex.logAllowed = true;
 //# sourceMappingURL=mutex.js.map
