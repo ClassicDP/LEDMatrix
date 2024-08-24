@@ -42,6 +42,7 @@ __webpack_require__.r(__webpack_exports__);
 class Matrix {
     constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
         this.elementIdCounter = 0;
+        this.elements = [];
         this.width = width;
         this.height = height;
         this.framesPerSecond = framesPerSecond;
@@ -96,6 +97,9 @@ class Matrix {
         }
         const totalHeight = this.height * frameCount;
         return new _FrameGroup__WEBPACK_IMPORTED_MODULE_0__.FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
+    }
+    addElement(timeElement) {
+        this.elements.push(timeElement);
     }
 }
 
@@ -507,41 +511,23 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-_SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix, _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement, _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier, _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier]);
+// Регистрируем классы для серилизации и десериализации
+_SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([
+    _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix,
+    _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement,
+    _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement,
+    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier,
+    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier,
+    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier
+]);
 let ws = null;
-let textElement1;
-let textElement2;
-let timeElement;
 let matrix;
-let scrollingModifier1;
-let scrollingModifier2;
-let rainbowModifier1;
-class Environment {
-    constructor(matrix, textElement1, textElement2, timeElement, scrollingModifier1, scrollingModifier2, rainbowModifier1) {
-        this.matrix = matrix;
-        this.textElement1 = textElement1;
-        this.textElement2 = textElement2;
-        this.timeElement = timeElement;
-        this.scrollingModifier1 = scrollingModifier1;
-        this.scrollingModifier2 = scrollingModifier2;
-        this.rainbowModifier1 = rainbowModifier1;
-    }
-}
 function getSnapshot() {
-    let environment;
-    environment = new Environment(matrix, textElement1, textElement2, timeElement, scrollingModifier1, scrollingModifier2, rainbowModifier1);
     console.log('get snapshot', matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime);
-    return _SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.serialise(environment);
+    return _SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.serialise(matrix);
 }
 function fromSnapshot(snapshot) {
-    let environment = _SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.deserialize(snapshot);
-    matrix = environment.matrix;
-    textElement1 = environment.textElement1;
-    textElement2 = environment.textElement2;
-    timeElement = environment.timeElement;
-    scrollingModifier1 = environment.scrollingModifier1;
-    scrollingModifier2 = environment.scrollingModifier2;
-    rainbowModifier1 = environment.rainbowModifier1;
+    matrix = _SerDe__WEBPACK_IMPORTED_MODULE_3__.SerDe.deserialize(snapshot);
     console.log('fromSnapshot', new Date(matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime).toString());
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -562,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 switch (message.command) {
                     case 'generateNextGroup':
                         if (matrix) {
-                            const frameGroup = matrix.generateNextGroup(container, [textElement1, textElement2, timeElement]);
+                            const frameGroup = matrix.generateNextGroup(container, matrix.elements);
                             console.log("generation done sending frameGroup");
                             ws.send(JSON.stringify({ frameGroup }));
                         }
@@ -601,30 +587,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 function initializeElements() {
     matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
-    textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
+    const textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
         fontSize: '12px',
         color: 'lime',
         fontWeight: 'bold'
     });
-    textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
+    matrix.addElement(textElement1);
+    const textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
     textElement2.updateTextStyle({
         fontSize: '12px',
         color: 'red',
         fontWeight: 'bold'
     });
-    timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement(matrix, "", 0, 15, 128, 20);
+    matrix.addElement(textElement2);
+    const timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement(matrix, "", 0, 15, 128, 20);
     timeElement.updateTextStyle({
         fontSize: '12px',
         color: 'yellow',
         fontWeight: 'bold',
         textAlign: 'center'
     });
-    scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
+    matrix.addElement(timeElement);
+    const scrollingModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
     textElement1.addModifier(scrollingModifier1);
-    rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
+    const rainbowModifier1 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
     textElement1.addModifier(rainbowModifier1);
-    scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
+    const scrollingModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
     textElement2.addModifier(scrollingModifier2);
     const rainbowModifier2 = new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
     textElement2.addModifier(rainbowModifier2);
