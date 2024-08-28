@@ -1,7 +1,15 @@
-import { Matrix } from './Matrix';
-import { MatrixElement, TimeMatrixElement } from './MatrixElement';
-import { RainbowEffectModifier, RotationModifier, ScrollingTextModifier } from './Modifiers';
-import { SerDe } from "./SerDe";
+import {Matrix} from './Matrix';
+import {MatrixElement, TimeMatrixElement} from './MatrixElement';
+import {
+    BlinkModifier,
+    RainbowEffectModifier,
+    RotationModifier,
+    ScaleModifier,
+    ScrollingTextModifier
+} from './Modifiers';
+import {SerDe} from "serde-ts";
+
+
 
 // Регистрируем классы для серилизации и десериализации
 SerDe.classRegistration([
@@ -10,7 +18,9 @@ SerDe.classRegistration([
     TimeMatrixElement,
     RainbowEffectModifier,
     ScrollingTextModifier,
-    RotationModifier
+    RotationModifier,
+    BlinkModifier,
+    ScaleModifier
 ]);
 
 interface WebSocketCommand {
@@ -56,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (matrix) {
                             const frameGroup = matrix.generateNextGroup(container, matrix.elements);
                             console.log("generation done sending frameGroup");
-                            ws!.send(JSON.stringify({ frameGroup }));
+                            ws!.send(JSON.stringify({frameGroup}));
                         }
                         break;
 
@@ -73,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     case 'getSnapshot':
                         const snapshot = getSnapshot();
-                        ws!.send(JSON.stringify({ command: 'loadSnapshot', value: snapshot }));
+                        ws!.send(JSON.stringify({command: 'loadSnapshot', value: snapshot}));
                         break;
 
                     case 'loadSnapshot':
@@ -125,15 +135,14 @@ function initializeElements() {
     });
     matrix.addElement(timeElement);
 
-    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
-    textElement1.addModifier(scrollingModifier1);
+    // new BlinkModifier(timeElement);
+    new ScaleModifier(timeElement);
+    new ScrollingTextModifier(textElement1, 20, 30);
+    new RainbowEffectModifier(textElement1, 2000);
+    new ScrollingTextModifier(textElement2, 30, 30);
+    new RainbowEffectModifier(textElement2, 2500);
 
-    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
-    textElement1.addModifier(rainbowModifier1);
 
-    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
-    textElement2.addModifier(scrollingModifier2);
-
-    const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
-    textElement2.addModifier(rainbowModifier2);
 }
+
+

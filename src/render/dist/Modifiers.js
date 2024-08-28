@@ -2,6 +2,7 @@ export class DynamicModifier {
     constructor(element, framesPerSecond) {
         this.element = element;
         this.framesPerSecond = framesPerSecond;
+        element.addModifier(this);
     }
 }
 export class RotationModifier extends DynamicModifier {
@@ -44,6 +45,25 @@ export class ScrollingTextModifier extends DynamicModifier {
         if (this.element.x + this.element.textWidth < 0) {
             this.element.x = this.element.width;
         }
+    }
+}
+export class BlinkModifier extends DynamicModifier {
+    apply(timestamp) {
+        let t = timestamp % 1000;
+        this.element.visible = t < 500;
+    }
+}
+export class ScaleModifier extends DynamicModifier {
+    apply(timestamp) {
+        // Вычисляем масштаб на основе времени
+        let t = (timestamp % 2000) / 2000;
+        if (t > 0.5)
+            t = 1 - t;
+        t = 1 + t;
+        // Применяем масштабирование к элементу
+        this.element.updateAdditionalStyles({
+            transform: `scale(${t})`
+        });
     }
 }
 //# sourceMappingURL=Modifiers.js.map

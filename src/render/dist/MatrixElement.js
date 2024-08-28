@@ -1,5 +1,7 @@
 export class MatrixElement {
     constructor(matrix, content, x, y, width, height) {
+        this.visible = true;
+        this.layer = 0;
         this.id = matrix.generateElementId();
         this.content = content;
         this.x = x;
@@ -8,6 +10,7 @@ export class MatrixElement {
         this.height = height;
         this.modifiers = [];
         this.textStyle = {};
+        this.additionalStyles = {}; // Инициализация нового поля
         this.textWidth = this.calculateTextWidth();
     }
     // Метод для вычисления ширины текста без добавления элемента в DOM
@@ -31,6 +34,9 @@ export class MatrixElement {
         Object.assign(this.textStyle, newStyles);
         this.textWidth = this.calculateTextWidth();
     }
+    updateAdditionalStyles(newStyles) {
+        Object.assign(this.additionalStyles, newStyles);
+    }
     setTextUpdateCallback(callback) {
         this.textUpdateCallback = callback;
     }
@@ -47,6 +53,8 @@ export class MatrixElement {
         this.modifiers.push(modifier);
     }
     renderTo(container) {
+        if (!this.visible)
+            return;
         // Ищем существующий элемент в контейнере по id
         let div = container.querySelector(`#${this.id}`);
         if (!div) {
@@ -62,7 +70,8 @@ export class MatrixElement {
         div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
-        Object.assign(div.style, this.textStyle);
+        // Применяем основные стили и дополнительные стили
+        Object.assign(div.style, this.textStyle, this.additionalStyles);
         if (typeof this.content === 'string') {
             div.innerText = this.content;
         }

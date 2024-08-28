@@ -1,5 +1,5 @@
-import { MatrixElement } from "./MatrixElement";
-import { FrameGroup } from "./FrameGroup";
+import {MatrixElement} from "./MatrixElement";
+import {FrameGroup} from "./FrameGroup";
 
 export class Matrix {
     width: number;
@@ -37,7 +37,7 @@ export class Matrix {
 
         // Начало новой группы
         const startTime = this.lastEndTime;
-        const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
+        const framePositions = Array.from({length: frameCount}, (_, i) => startTime + i * frameInterval);
         this.lastEndTime = startTime + frameInterval * frameCount;
 
         for (let i = 0; i < frameCount; i++) {
@@ -61,6 +61,7 @@ export class Matrix {
             // Очищаем содержимое фрейма перед добавлением новых элементов
             frame.innerHTML = '';
 
+            matrixElements.sort((a, b) => b.layer - a.layer)
             // Применяем модификаторы и рендерим каждый элемент матрицы
             for (const matrixElement of matrixElements) {
                 matrixElement.applyModifiers(framePositions[i]);
@@ -79,8 +80,18 @@ export class Matrix {
         return new FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
     }
 
-    addElement(timeElement: MatrixElement) {
-        this.elements.push(timeElement)
+    addElement(matrixElement: MatrixElement) {
+        if (!this.elements.includes(matrixElement)) {
+            this.elements.push(matrixElement);
+        }
 
+    }
+
+    removeElement(matrixElement: MatrixElement) {
+        this.elements = this.elements.filter(x => x !== matrixElement)
+    }
+
+    clearElements() {
+        this.elements = []
     }
 }

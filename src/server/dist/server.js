@@ -39,8 +39,8 @@ const path_1 = __importDefault(require("path"));
 const playwright_1 = require("playwright");
 const http_1 = __importDefault(require("http"));
 const ws_1 = __importStar(require("ws"));
+const mutex_1 = require("./mutex");
 const PointTracker_1 = require("./PointTracker");
-const mutex_1 = require("./mutex"); // Подключаем класс PointTracker
 function wait(ms) {
     return __awaiter(this, void 0, void 0, function* () {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -130,9 +130,10 @@ wss.on('connection', (ws) => __awaiter(void 0, void 0, void 0, function* () {
                 // Устанавливаем новый таймаут и сохраняем его идентификатор
                 generateNextGroupTimeout = setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
                     tracker.point('generate-next-group-start');
-                    yield frameRequestMutex.lock('generateNextGroup');
-                    ws.send(JSON.stringify({ command: 'generateNextGroup' }));
-                    generateNextGroupStart = Date.now();
+                    if (frameRequestMutex.tryLock('generateNextGroup')) {
+                        ws.send(JSON.stringify({ command: 'generateNextGroup' }));
+                        generateNextGroupStart = Date.now();
+                    }
                 }), delay);
             }
             else {
@@ -258,6 +259,7 @@ server.listen(8081, () => {
 });
 // Логирование использования памяти каждые 30 секунд
 setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
+    console.log(tracker.report({ minTime: 10, requireDependencies: true }));
     yield frameRequestMutex.lock('awaiting for close page');
     const memoryUsage = process.memoryUsage();
     if (page && wsRender) {
@@ -267,6 +269,5 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
         tracker.point('page-close');
         yield createNewPage();
     }
-    frameRequestMutex.unlock('memory check completed');
 }), 2000);
 //# sourceMappingURL=server.js.map

@@ -1,7 +1,7 @@
 import { Matrix } from './Matrix';
 import { MatrixElement, TimeMatrixElement } from './MatrixElement';
-import { RainbowEffectModifier, RotationModifier, ScrollingTextModifier } from './Modifiers';
-import { SerDe } from "./SerDe";
+import { BlinkModifier, RainbowEffectModifier, RotationModifier, ScaleModifier, ScrollingTextModifier } from './Modifiers';
+import { SerDe } from "serde-ts";
 // Регистрируем классы для серилизации и десериализации
 SerDe.classRegistration([
     Matrix,
@@ -9,7 +9,9 @@ SerDe.classRegistration([
     TimeMatrixElement,
     RainbowEffectModifier,
     ScrollingTextModifier,
-    RotationModifier
+    RotationModifier,
+    BlinkModifier,
+    ScaleModifier
 ]);
 let ws = null;
 let matrix;
@@ -100,13 +102,11 @@ function initializeElements() {
         textAlign: 'center'
     });
     matrix.addElement(timeElement);
-    const scrollingModifier1 = new ScrollingTextModifier(textElement1, 20, 30);
-    textElement1.addModifier(scrollingModifier1);
-    const rainbowModifier1 = new RainbowEffectModifier(textElement1, 2000);
-    textElement1.addModifier(rainbowModifier1);
-    const scrollingModifier2 = new ScrollingTextModifier(textElement2, 30, 30);
-    textElement2.addModifier(scrollingModifier2);
-    const rainbowModifier2 = new RainbowEffectModifier(textElement2, 2500);
-    textElement2.addModifier(rainbowModifier2);
+    // new BlinkModifier(timeElement);
+    new ScaleModifier(timeElement);
+    new ScrollingTextModifier(textElement1, 20, 30);
+    new RainbowEffectModifier(textElement1, 2000);
+    new ScrollingTextModifier(textElement2, 30, 30);
+    new RainbowEffectModifier(textElement2, 2500);
 }
 //# sourceMappingURL=index.js.map

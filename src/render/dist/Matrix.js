@@ -43,6 +43,7 @@ export class Matrix {
             frame.style.top = `${i * this.height}px`;
             // Очищаем содержимое фрейма перед добавлением новых элементов
             frame.innerHTML = '';
+            matrixElements.sort((a, b) => b.layer - a.layer);
             // Применяем модификаторы и рендерим каждый элемент матрицы
             for (const matrixElement of matrixElements) {
                 matrixElement.applyModifiers(framePositions[i]);
@@ -58,8 +59,16 @@ export class Matrix {
         const totalHeight = this.height * frameCount;
         return new FrameGroup(startTime, frameInterval, frameCount, this.framesPerSecond, framePositions, totalHeight, this.width);
     }
-    addElement(timeElement) {
-        this.elements.push(timeElement);
+    addElement(matrixElement) {
+        if (!this.elements.includes(matrixElement)) {
+            this.elements.push(matrixElement);
+        }
+    }
+    removeElement(matrixElement) {
+        this.elements = this.elements.filter(x => x !== matrixElement);
+    }
+    clearElements() {
+        this.elements = [];
     }
 }
 //# sourceMappingURL=Matrix.js.map

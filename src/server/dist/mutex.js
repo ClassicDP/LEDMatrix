@@ -19,6 +19,19 @@ class Mutex {
             }
         });
     }
+    tryLock(logMsg) {
+        if (this._lock) {
+            // Если мьютекс уже залочен, возвращаем false
+            return false;
+        }
+        else {
+            // Если мьютекс свободен, лочим его и возвращаем true
+            this._lock = true;
+            if (Mutex.logAllowed && logMsg)
+                console.log("Mutex tryLock successful: ", logMsg);
+            return true;
+        }
+    }
     unlock(logMsg) {
         if (Mutex.logAllowed && logMsg)
             console.log("Mutex unLock: ", logMsg);
