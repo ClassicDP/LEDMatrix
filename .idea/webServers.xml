@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="54f09cf3-c08d-4ff0-b08b-790d972f0056" name="orange">
+        <fileTransfer rootFolder="/home/shared/" accessType="SFTP" host="192.168.1.85" port="22" sshConfigId="730d4d78-16db-4341-ad55-1f260589d8cc" sshConfig="orangepi@192.168.1.85:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" isUseSudo="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
