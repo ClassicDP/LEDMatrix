@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
+    "target": "ES6",
+    "module": "commonjs",  // Используем CommonJS
     "strict": true,
     "esModuleInterop": true,
     "outDir": "./dist",
