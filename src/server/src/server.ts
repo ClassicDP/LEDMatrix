@@ -2,8 +2,8 @@ import path from 'path';
 import {Browser, BrowserContext, Page, webkit} from 'playwright';
 import http from 'http';
 import WebSocket, {WebSocketServer} from 'ws';
-import {PointTracker} from './PointTracker';
-import {Mutex} from "./mutex"; // Подключаем класс PointTracker
+import {Mutex} from "./mutex";
+import {PointTracker} from "./PointTracker";
 
 async function wait(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -118,9 +118,10 @@ wss.on('connection', async (ws: WebSocket) => {
                 // Устанавливаем новый таймаут и сохраняем его идентификатор
                 generateNextGroupTimeout = setTimeout(async () => {
                     tracker.point('generate-next-group-start');
-                    await frameRequestMutex.lock('generateNextGroup');
-                    ws.send(JSON.stringify({command: 'generateNextGroup'}));
-                    generateNextGroupStart = Date.now();
+                    if (frameRequestMutex.tryLock('generateNextGroup')) {
+                        ws.send(JSON.stringify({command: 'generateNextGroup'}));
+                        generateNextGroupStart = Date.now();
+                    }
                 }, delay);
             } else {
                 console.log('Page is not available');
@@ -256,6 +257,7 @@ server.listen(8081, () => {
 
 // Логирование использования памяти каждые 30 секунд
 setInterval(async () => {
+    console.log(tracker.report({minTime: 10, requireDependencies: true}))
     await frameRequestMutex.lock('awaiting for close page');
     const memoryUsage = process.memoryUsage();
 
@@ -266,6 +268,5 @@ setInterval(async () => {
         tracker.point('page-close');
         await createNewPage();
     }
-
-    frameRequestMutex.unlock('memory check completed');
 }, 2000);
+

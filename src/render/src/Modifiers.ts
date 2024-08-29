@@ -1,12 +1,13 @@
-import { MatrixElement } from "./MatrixElement";
+import {MatrixElement} from "./MatrixElement";
 
 export abstract class DynamicModifier {
     protected element: MatrixElement;
     framesPerSecond: number | undefined;
 
-    protected constructor(element: MatrixElement, framesPerSecond?: number) {
+    constructor(element: MatrixElement, framesPerSecond?: number) {
         this.element = element;
         this.framesPerSecond = framesPerSecond
+        element.addModifier(this)
     }
 
     abstract apply(timestamp: number): void;
@@ -39,10 +40,9 @@ export class RainbowEffectModifier extends DynamicModifier {
     apply(timestamp: number) {
         const phase = (timestamp % this.period) / this.period;
         const hue = Math.floor(phase * 360);
-        this.element.updateTextStyle({ color: `hsl(${hue}, 100%, 50%)` });
+        this.element.updateTextStyle({color: `hsl(${hue}, 100%, 50%)`});
     }
 }
-
 
 
 export class ScrollingTextModifier extends DynamicModifier {
@@ -69,5 +69,27 @@ export class ScrollingTextModifier extends DynamicModifier {
         if (this.element.x + this.element.textWidth < 0) {
             this.element.x = this.element.width;
         }
+    }
+}
+
+export class BlinkModifier extends DynamicModifier {
+    apply(timestamp: number): void {
+        let t = timestamp % 1000
+        this.element.visible = t < 500
+    }
+
+}
+
+export class ScaleModifier extends DynamicModifier {
+    apply(timestamp: number): void {
+        // Вычисляем масштаб на основе времени
+        let t = (timestamp % 2000) / 2000;
+        if (t > 0.5) t = 1 - t
+        t = 1 + t
+
+        // Применяем масштабирование к элементу
+        this.element.updateAdditionalStyles({
+            transform: `scale(${t})`
+        });
     }
 }

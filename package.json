@@ -33,14 +33,15 @@
     "blessed-contrib": "^4.11.0",
     "canvas": "^2.11.2",
     "chrome-remote-interface": "^0.33.2",
+    "concurrently": "^8.2.2",
     "html2canvas": "^1.4.1",
     "jsdom": "^24.1.1",
     "puppeteer": "^22.15.0",
     "selenium-webdriver": "^4.23.0",
+    "serde-ts": "^1.0.2",
     "sharp": "^0.33.4",
     "undici-types": "^6.11.1",
-    "ws": "^8.18.0",
-    "concurrently": "^8.2.2"
+    "ws": "^8.18.0"
   },
   "description": ""
 }

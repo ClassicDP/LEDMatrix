@@ -1,5 +1,5 @@
-import {DynamicModifier} from "./Modifiers";
-import {Matrix} from "./Matrix";
+import { DynamicModifier } from "./Modifiers";
+import { Matrix } from "./Matrix";
 
 export class MatrixElement {
     id: string;
@@ -10,8 +10,11 @@ export class MatrixElement {
     height: number;
     modifiers: DynamicModifier[];
     textWidth: number;
+    visible: boolean = true;
+    layer = 0;
     textUpdateCallback?: (timestamp: number) => string;
     textStyle: Partial<CSSStyleDeclaration>;
+    additionalStyles: Partial<CSSStyleDeclaration>;  // Новое поле для дополнительных стилей
 
     constructor(matrix: Matrix, content: string | HTMLImageElement | SVGElement, x: number, y: number, width: number, height: number) {
         this.id = matrix.generateElementId();
@@ -22,6 +25,7 @@ export class MatrixElement {
         this.height = height;
         this.modifiers = [];
         this.textStyle = {};
+        this.additionalStyles = {};  // Инициализация нового поля
 
         this.textWidth = this.calculateTextWidth();
     }
@@ -50,6 +54,9 @@ export class MatrixElement {
         this.textWidth = this.calculateTextWidth();
     }
 
+    updateAdditionalStyles(newStyles: Partial<CSSStyleDeclaration>) {  // Новый метод для обновления дополнительных стилей
+        Object.assign(this.additionalStyles, newStyles);
+    }
 
     setTextUpdateCallback(callback: (timestamp: number) => string) {
         this.textUpdateCallback = callback;
@@ -70,6 +77,7 @@ export class MatrixElement {
     }
 
     renderTo(container: HTMLElement) {
+        if (!this.visible) return;
         // Ищем существующий элемент в контейнере по id
         let div = container.querySelector(`#${this.id}`) as HTMLElement;
 
@@ -88,7 +96,8 @@ export class MatrixElement {
         div.style.height = `${this.height}px`;
         div.style.overflow = 'hidden';
 
-        Object.assign(div.style, this.textStyle);
+        // Применяем основные стили и дополнительные стили
+        Object.assign(div.style, this.textStyle, this.additionalStyles);
 
         if (typeof this.content === 'string') {
             div.innerText = this.content;
@@ -102,7 +111,7 @@ export class MatrixElement {
 export class TimeMatrixElement extends MatrixElement {
     constructor(matrix: Matrix, content: string | HTMLImageElement | SVGElement, x: number, y: number, width: number, height: number) {
         super(matrix, content, x, y, width, height);
-        this._initFn()
+        this._initFn();
     }
 
     _initFn() {
@@ -111,5 +120,4 @@ export class TimeMatrixElement extends MatrixElement {
             return now.toISOString().substr(11, 12); // Формат времени с миллисекундами (HH:mm:ss.sss)
         });
     }
-
 }
