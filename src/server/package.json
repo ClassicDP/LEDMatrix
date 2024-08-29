@@ -1,8 +1,9 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
-    "server": "node ./dist/server.js"
+    "build": "tsc",
+    "server": "npm run build && node ./dist/server.js"
   }
 }
