@@ -213,10 +213,8 @@ class Handlers {
             yield this.frameRequestMutex.lock('generateNextGroup');
             try {
                 const command = { command: 'generateNextGroup' };
-                yield this.sendWebSocketCommand(command);
-                return new Promise((resolve) => {
-                    // Need to handle the response in the 'message' event of the individual WebSocket connection
-                    this.wss.on('connection', (ws) => {
+                const responsePromise = new Promise((resolve) => {
+                    this.clients.forEach(ws => {
                         ws.on('message', (event) => {
                             const message = JSON.parse(event.toString());
                             if (message.frameGroup) {
@@ -225,6 +223,9 @@ class Handlers {
                         });
                     });
                 });
+                yield this.sendWebSocketCommand(command);
+                // Ждем ответ от клиента, который пришлет frameGroup
+                return yield responsePromise;
             }
             finally {
                 this.frameRequestMutex.unlock('generateNextGroup');
