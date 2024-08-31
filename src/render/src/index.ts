@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'setStartTime':
                         if (matrix) {
                             matrix.setStartTime(message.value);
+                            ws!.send(JSON.stringify({command: 'setStartTime'}));
                         }
                         break;
 

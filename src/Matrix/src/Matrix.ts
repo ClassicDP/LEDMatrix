@@ -27,6 +27,7 @@ export class Matrix {
 
     setStartTime(newStartTime: number) {
         this.startTime = newStartTime;
+        console.log(this.startTime)
         this.lastEndTime = newStartTime;
     }
 

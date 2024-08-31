@@ -37,7 +37,7 @@ worker.onmessage = (event) => {
 let ws;
 let reconnectInterval;
 function connectWebSocket() {
-    ws = new WebSocket('ws://localhost:8081');
+    ws = new WebSocket('ws://localhost:8083');
     ws.onopen = () => __awaiter(this, void 0, void 0, function* () {
         console.log('WebSocket connected');
         if (reconnectInterval) {

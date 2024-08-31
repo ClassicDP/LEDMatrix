@@ -2,7 +2,6 @@ import path from 'path';
 import {Browser, BrowserContext, Page, webkit} from 'playwright';
 import WebSocket, {WebSocketServer} from 'ws';
 import {Server} from 'ws';
-import {Mutex} from "./mutex";
 import {PointTracker} from "./PointTracker";
 import {WorkerController} from "worker-threads-manager/dist/src";
 
@@ -27,13 +26,12 @@ export class Handlers {
     private context: BrowserContext | null = null;
     private page: Page | null = null;
     private wss: WebSocketServer | null = null;
-    private frameRequestMutex = new Mutex();
+    private resolveOnMassage: ((value: FrameGroup | PromiseLike<FrameGroup>) => void) | undefined
     private tracker = new PointTracker();
     private lastTime: number | undefined;
     private snapshot: string | undefined;
     private resolveFunc: ((value: string) => void) | null = null;
-
-    private clients: WebSocket[] = []; // Массив для хранения активных соединений
+    private ws: WebSocket | undefined;
 
     async initializePage(): Promise<void> {
         this.tracker.point('initialization-start');
@@ -46,6 +44,13 @@ export class Handlers {
         } catch (e) {
             console.log(e);
         }
+    }
+
+    async setStartTime (newTime: number | Date) {
+        await this.sendWebSocketCommand({command: "setStartTime", value: newTime.valueOf()})
+        return new Promise(resolve => {
+            this.resolveFunc = resolve
+        })
     }
 
     private async createNewPage(): Promise<void> {
@@ -88,9 +93,7 @@ export class Handlers {
 
                 wss.on('connection', (ws) => {
                     console.log('WebSocket connection opened');
-
-                    // Добавляем новое соединение в массив клиентов
-                    this.clients.push(ws);
+                    this.ws = ws
 
                     // Отправляем команду для инициализации элементов
                     ws.send(JSON.stringify({command: 'initializeElements'}));
@@ -103,7 +106,6 @@ export class Handlers {
                     // Удаляем закрытое соединение из массива клиентов
                     ws.on('close', () => {
                         console.log('WebSocket connection closed');
-                        this.clients = this.clients.filter(client => client !== ws);
                     });
 
                     // Обрабатываем ошибки
@@ -129,13 +131,13 @@ export class Handlers {
     }
     private async handleWebSocketMessage(event: WebSocket.MessageEvent): Promise<void> {
         const message: WebSocketCommand = JSON.parse(event.data.toString());
-        if (message.command === 'loadSnapshot' && this.resolveFunc) {
-            this.resolveFunc(message.value);
+        if ((message.command === 'loadSnapshot' || message.command === 'setStartTime') && this.resolveFunc) {
+            this.resolveFunc(message.value ?? '');
             this.resolveFunc = null;
         }
         if (message.frameGroup) {
             this.tracker.point('generate-next-group-end', ['generate-next-group-start']);
-            const frameGroup = message.frameGroup;
+            let frameGroup: FrameGroup | undefined = message.frameGroup;
 
             if (this.page) {
                 this.tracker.point('resize-start');
@@ -145,9 +147,11 @@ export class Handlers {
                 this.lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
 
                 this.tracker.point('render-start');
-                await this.captureScreenshot(frameGroup);
+                frameGroup = await this.captureScreenshot(frameGroup);
                 this.tracker.point('render-end', ['render-start']);
-                this.frameRequestMutex.unlock('render-end');
+                if (this.resolveOnMassage && frameGroup) {
+                    this.resolveOnMassage(frameGroup)
+                }
             } else {
                 console.log('Page is not available');
             }
@@ -197,7 +201,7 @@ export class Handlers {
                     };
 
                     this.tracker.point('screenshot-attempt-end');
-                    return;
+                    return frameData;
                 } else {
                     console.error('Page is not available');
                     this.tracker.point('page-not-available');
@@ -224,18 +228,10 @@ export class Handlers {
     }
 
     public async generateNextFrameGroup(): Promise<FrameGroup | undefined> {
-        await this.frameRequestMutex.lock('generateNextGroup');
         try {
             const command: WebSocketCommand = {command: 'generateNextGroup'};
             const responsePromise = new Promise<FrameGroup>((resolve) => {
-                this.clients.forEach(ws => {
-                    ws.on('message', (event) => {
-                        const message: WebSocketCommand = JSON.parse(event.toString());
-                        if (message.frameGroup) {
-                            resolve(message.frameGroup);
-                        }
-                    });
-                });
+                this.resolveOnMassage = resolve
             });
 
             await this.sendWebSocketCommand(command);
@@ -243,7 +239,7 @@ export class Handlers {
             // Ждем ответ от клиента, который пришлет frameGroup
             return await responsePromise;
         } finally {
-            this.frameRequestMutex.unlock('generateNextGroup');
+
         }
     }
 
@@ -261,14 +257,11 @@ export class Handlers {
     }
 
     private async sendWebSocketCommand(command: WebSocketCommand): Promise<void> {
-        // Проходим по всем активным клиентам и отправляем команду
-        this.clients.forEach(ws => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(command));
-            } else {
-                console.error("WebSocket is not open. Unable to send command:", command);
-            }
-        });
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(command));
+        }  else {
+            console.error("WebSocket is not open. Unable to send command:", command);
+        }
     }
 }
 

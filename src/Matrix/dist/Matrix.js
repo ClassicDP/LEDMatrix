@@ -18,6 +18,7 @@ class Matrix {
     }
     setStartTime(newStartTime) {
         this.startTime = newStartTime;
+        console.log(this.startTime);
         this.lastEndTime = newStartTime;
     }
     generateNextGroup(container, matrixElements) {

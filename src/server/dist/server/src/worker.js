@@ -17,7 +17,6 @@ const path_1 = __importDefault(require("path"));
 const playwright_1 = require("playwright");
 const ws_1 = __importDefault(require("ws"));
 const ws_2 = require("ws");
-const mutex_1 = require("./mutex");
 const PointTracker_1 = require("./PointTracker");
 const src_1 = require("worker-threads-manager/dist/src");
 class Handlers {
@@ -26,10 +25,8 @@ class Handlers {
         this.context = null;
         this.page = null;
         this.wss = null;
-        this.frameRequestMutex = new mutex_1.Mutex();
         this.tracker = new PointTracker_1.PointTracker();
         this.resolveFunc = null;
-        this.clients = []; // Массив для хранения активных соединений
     }
     initializePage() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -43,6 +40,14 @@ class Handlers {
             catch (e) {
                 console.log(e);
             }
+        });
+    }
+    setStartTime(newTime) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.sendWebSocketCommand({ command: "setStartTime", value: newTime.valueOf() });
+            return new Promise(resolve => {
+                this.resolveFunc = resolve;
+            });
         });
     }
     createNewPage() {
@@ -84,8 +89,7 @@ class Handlers {
                     let isResolved = false;
                     wss.on('connection', (ws) => {
                         console.log('WebSocket connection opened');
-                        // Добавляем новое соединение в массив клиентов
-                        this.clients.push(ws);
+                        this.ws = ws;
                         // Отправляем команду для инициализации элементов
                         ws.send(JSON.stringify({ command: 'initializeElements' }));
                         // Обрабатываем сообщения
@@ -95,7 +99,6 @@ class Handlers {
                         // Удаляем закрытое соединение из массива клиентов
                         ws.on('close', () => {
                             console.log('WebSocket connection closed');
-                            this.clients = this.clients.filter(client => client !== ws);
                         });
                         // Обрабатываем ошибки
                         ws.on('error', (error) => {
@@ -119,23 +122,26 @@ class Handlers {
     }
     handleWebSocketMessage(event) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             const message = JSON.parse(event.data.toString());
-            if (message.command === 'loadSnapshot' && this.resolveFunc) {
-                this.resolveFunc(message.value);
+            if ((message.command === 'loadSnapshot' || message.command === 'setStartTime') && this.resolveFunc) {
+                this.resolveFunc((_a = message.value) !== null && _a !== void 0 ? _a : '');
                 this.resolveFunc = null;
             }
             if (message.frameGroup) {
                 this.tracker.point('generate-next-group-end', ['generate-next-group-start']);
-                const frameGroup = message.frameGroup;
+                let frameGroup = message.frameGroup;
                 if (this.page) {
                     this.tracker.point('resize-start');
                     yield this.page.setViewportSize({ width: frameGroup.width, height: frameGroup.totalHeight });
                     this.tracker.point('resize-end', ['resize-start']);
                     this.lastTime = frameGroup.startTime + frameGroup.frameInterval * frameGroup.frameCount;
                     this.tracker.point('render-start');
-                    yield this.captureScreenshot(frameGroup);
+                    frameGroup = yield this.captureScreenshot(frameGroup);
                     this.tracker.point('render-end', ['render-start']);
-                    this.frameRequestMutex.unlock('render-end');
+                    if (this.resolveOnMassage && frameGroup) {
+                        this.resolveOnMassage(frameGroup);
+                    }
                 }
                 else {
                     console.log('Page is not available');
@@ -180,7 +186,7 @@ class Handlers {
                             imageBuffer: screenshotBuffer.toString('base64'),
                         };
                         this.tracker.point('screenshot-attempt-end');
-                        return;
+                        return frameData;
                     }
                     else {
                         console.error('Page is not available');
@@ -210,25 +216,16 @@ class Handlers {
     }
     generateNextFrameGroup() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.frameRequestMutex.lock('generateNextGroup');
             try {
                 const command = { command: 'generateNextGroup' };
                 const responsePromise = new Promise((resolve) => {
-                    this.clients.forEach(ws => {
-                        ws.on('message', (event) => {
-                            const message = JSON.parse(event.toString());
-                            if (message.frameGroup) {
-                                resolve(message.frameGroup);
-                            }
-                        });
-                    });
+                    this.resolveOnMassage = resolve;
                 });
                 yield this.sendWebSocketCommand(command);
                 // Ждем ответ от клиента, который пришлет frameGroup
                 return yield responsePromise;
             }
             finally {
-                this.frameRequestMutex.unlock('generateNextGroup');
             }
         });
     }
@@ -249,15 +246,12 @@ class Handlers {
     }
     sendWebSocketCommand(command) {
         return __awaiter(this, void 0, void 0, function* () {
-            // Проходим по всем активным клиентам и отправляем команду
-            this.clients.forEach(ws => {
-                if (ws.readyState === ws_1.default.OPEN) {
-                    ws.send(JSON.stringify(command));
-                }
-                else {
-                    console.error("WebSocket is not open. Unable to send command:", command);
-                }
-            });
+            if (this.ws && this.ws.readyState === ws_1.default.OPEN) {
+                this.ws.send(JSON.stringify(command));
+            }
+            else {
+                console.error("WebSocket is not open. Unable to send command:", command);
+            }
         });
     }
 }

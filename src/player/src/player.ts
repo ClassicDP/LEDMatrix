@@ -49,7 +49,7 @@ let ws: WebSocket;
 let reconnectInterval: string | number | NodeJS.Timeout | null | undefined
 
 function connectWebSocket() {
-    ws = new WebSocket('ws://localhost:8081');
+    ws = new WebSocket('ws://localhost:8083');
 
     ws.onopen = async () => {
         console.log('WebSocket connected');
