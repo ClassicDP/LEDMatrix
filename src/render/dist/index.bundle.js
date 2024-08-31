@@ -211,10 +211,10 @@ __exportStar(__webpack_require__(/*! ./SerDe */ "../../node_modules/serde-ts/dis
 
 /***/ }),
 
-/***/ "./src/FrameGroup.ts":
-/*!***************************!*\
-  !*** ./src/FrameGroup.ts ***!
-  \***************************/
+/***/ "../Matrix/src/FrameGroup.ts":
+/*!***********************************!*\
+  !*** ../Matrix/src/FrameGroup.ts ***!
+  \***********************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -236,17 +236,17 @@ class FrameGroup {
 
 /***/ }),
 
-/***/ "./src/Matrix.ts":
-/*!***********************!*\
-  !*** ./src/Matrix.ts ***!
-  \***********************/
+/***/ "../Matrix/src/Matrix.ts":
+/*!*******************************!*\
+  !*** ../Matrix/src/Matrix.ts ***!
+  \*******************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Matrix: () => (/* binding */ Matrix)
 /* harmony export */ });
-/* harmony import */ var _FrameGroup__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./FrameGroup */ "./src/FrameGroup.ts");
+/* harmony import */ var _FrameGroup__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./FrameGroup */ "../Matrix/src/FrameGroup.ts");
 
 class Matrix {
     constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
@@ -324,10 +324,10 @@ class Matrix {
 
 /***/ }),
 
-/***/ "./src/MatrixElement.ts":
-/*!******************************!*\
-  !*** ./src/MatrixElement.ts ***!
-  \******************************/
+/***/ "../Matrix/src/MatrixElement.ts":
+/*!**************************************!*\
+  !*** ../Matrix/src/MatrixElement.ts ***!
+  \**************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -352,16 +352,17 @@ class MatrixElement {
     }
     // Метод для вычисления ширины текста без добавления элемента в DOM
     calculateTextWidth() {
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.visibility = 'hidden';
-        tempDiv.style.whiteSpace = 'nowrap';
-        tempDiv.style.font = this.textStyle.font || '16px Arial';
-        tempDiv.innerText = this.content;
-        document.body.appendChild(tempDiv);
-        const width = tempDiv.clientWidth;
-        document.body.removeChild(tempDiv);
-        return width;
+        // const tempDiv = document.createElement('div');
+        // tempDiv.style.position = 'absolute';
+        // tempDiv.style.visibility = 'hidden';
+        // tempDiv.style.whiteSpace = 'nowrap';
+        // tempDiv.style.font = this.textStyle.font || '16px Arial';
+        // tempDiv.innerText = this.content as string;
+        // document.body.appendChild(tempDiv);
+        // const width = tempDiv.clientWidth;
+        // document.body.removeChild(tempDiv);
+        // return width;
+        return 0;
     }
     setText(newText) {
         this.content = newText;
@@ -434,10 +435,10 @@ class TimeMatrixElement extends MatrixElement {
 
 /***/ }),
 
-/***/ "./src/Modifiers.ts":
-/*!**************************!*\
-  !*** ./src/Modifiers.ts ***!
-  \**************************/
+/***/ "../Matrix/src/Modifiers.ts":
+/*!**********************************!*\
+  !*** ../Matrix/src/Modifiers.ts ***!
+  \**********************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -594,9 +595,9 @@ var __webpack_exports__ = {};
   !*** ./src/index.ts ***!
   \**********************/
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _Matrix__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Matrix */ "./src/Matrix.ts");
-/* harmony import */ var _MatrixElement__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./MatrixElement */ "./src/MatrixElement.ts");
-/* harmony import */ var _Modifiers__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./Modifiers */ "./src/Modifiers.ts");
+/* harmony import */ var _Matrix_src_Matrix__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../Matrix/src/Matrix */ "../Matrix/src/Matrix.ts");
+/* harmony import */ var _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../Matrix/src/MatrixElement */ "../Matrix/src/MatrixElement.ts");
+/* harmony import */ var _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../Matrix/src/Modifiers */ "../Matrix/src/Modifiers.ts");
 /* harmony import */ var serde_ts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! serde-ts */ "../../node_modules/serde-ts/dist/index.js");
 /* harmony import */ var serde_ts__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(serde_ts__WEBPACK_IMPORTED_MODULE_3__);
 
@@ -605,14 +606,14 @@ __webpack_require__.r(__webpack_exports__);
 
 // Регистрируем классы для серилизации и десериализации
 serde_ts__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([
-    _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix,
-    _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement,
-    _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement,
-    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier,
-    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier,
-    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier,
-    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.BlinkModifier,
-    _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier
+    _Matrix_src_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix,
+    _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement,
+    _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.BlinkModifier,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier
 ]);
 let ws = null;
 let matrix;
@@ -680,22 +681,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 function initializeElements() {
-    matrix = new _Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
-    const textElement1 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
+    matrix = new _Matrix_src_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    const textElement1 = new _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
         fontSize: '12px',
         color: 'lime',
         fontWeight: 'bold'
     });
     matrix.addElement(textElement1);
-    const textElement2 = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
+    const textElement2 = new _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 2", 0, 30, 128, 20);
     textElement2.updateTextStyle({
         fontSize: '12px',
         color: 'red',
         fontWeight: 'bold'
     });
     matrix.addElement(textElement2);
-    const timeElement = new _MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement(matrix, "", 0, 15, 128, 20);
+    const timeElement = new _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.TimeMatrixElement(matrix, "", 0, 15, 128, 20);
     timeElement.updateTextStyle({
         fontSize: '12px',
         color: 'yellow',
@@ -704,11 +705,11 @@ function initializeElements() {
     });
     matrix.addElement(timeElement);
     // new BlinkModifier(timeElement);
-    new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier(timeElement);
-    new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
-    new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
-    new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
-    new _Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier(timeElement);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
 }
 
 /******/ })()

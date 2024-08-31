@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
-    "build": "tsc",
-    "server": "npm run build && node ./dist/server.js"
+    "dev": "parcel src/server.ts",
+    "build": "webpack --config webpack.config.js"
+  },
+  "devDependencies": {
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "stream-http": "^3.2.0"
   }
 }

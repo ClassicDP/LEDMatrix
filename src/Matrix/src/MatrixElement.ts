@@ -32,16 +32,17 @@ export class MatrixElement {
 
     // Метод для вычисления ширины текста без добавления элемента в DOM
     calculateTextWidth(): number {
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.visibility = 'hidden';
-        tempDiv.style.whiteSpace = 'nowrap';
-        tempDiv.style.font = this.textStyle.font || '16px Arial';
-        tempDiv.innerText = this.content as string;
-        document.body.appendChild(tempDiv);
-        const width = tempDiv.clientWidth;
-        document.body.removeChild(tempDiv);
-        return width;
+        // const tempDiv = document.createElement('div');
+        // tempDiv.style.position = 'absolute';
+        // tempDiv.style.visibility = 'hidden';
+        // tempDiv.style.whiteSpace = 'nowrap';
+        // tempDiv.style.font = this.textStyle.font || '16px Arial';
+        // tempDiv.innerText = this.content as string;
+        // document.body.appendChild(tempDiv);
+        // const width = tempDiv.clientWidth;
+        // document.body.removeChild(tempDiv);
+        // return width;
+        return 0
     }
 
     setText(newText: string) {

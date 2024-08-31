@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chalk": "^2.2.0",
     "@types/node": "^22.0.2",
     "@types/selenium-webdriver": "^4.1.24",
     "cheerio": "^1.0.0-rc.10",
@@ -20,10 +21,11 @@
     "html-webpack-plugin": "^5.6.0",
     "node-fetch": "^3.3.2",
     "playwright": "^1.21.1",
+    "source-map-loader": "^5.0.0",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
-    "webpack": "^5.93.0",
+    "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"
   },
@@ -32,6 +34,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "canvas": "^2.11.2",
+    "chalk": "^5.3.0",
     "chrome-remote-interface": "^0.33.2",
     "concurrently": "^8.2.2",
     "html2canvas": "^1.4.1",
@@ -41,6 +44,7 @@
     "serde-ts": "^1.0.2",
     "sharp": "^0.33.4",
     "undici-types": "^6.11.1",
+    "worker-threads-manager": "^1.0.2",
     "ws": "^8.18.0"
   },
   "description": ""

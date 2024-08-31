@@ -1,13 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES6",
-    "module": "commonjs",  // Используем CommonJS
+    "module": "CommonJS",  // Используем CommonJS
     "strict": true,
+    "sourceMap": true,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "sourceMap": true
+    "rootDir": "../",
+    "baseUrl": ".",
+    "paths": {
+      "@matrix/*": ["Matrix/src/*"],
+      "@server/*": ["src/*"]
+    }
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "../Matrix/src/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

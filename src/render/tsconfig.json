@@ -5,10 +5,14 @@
     "strict": true,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "moduleResolution": "node",
-    "sourceMap": true
+    "sourceMap": true,
+    "paths": {
+      "@matrix/*": ["./Matrix/src/*"],  // Измените на относительный путь
+      "@render/*": ["./render/src/*"]   // Измените на относительный путь
+    }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"],
+  "include": ["src/**/*.ts", "../Matrix/src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
