@@ -366,7 +366,7 @@ class MatrixElement {
     }
     setText(newText) {
         this.content = newText;
-        this.textWidth = this.calculateTextWidth();
+        // this.textWidth = this.calculateTextWidth();
     }
     updateTextStyle(newStyles) {
         Object.assign(this.textStyle, newStyles);
@@ -391,6 +391,7 @@ class MatrixElement {
         this.modifiers.push(modifier);
     }
     renderTo(container) {
+        this.calculateTextWidth();
         if (!this.visible)
             return;
         // Ищем существующий элемент в контейнере по id

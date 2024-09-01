@@ -46,7 +46,7 @@ export class MatrixElement {
 
     setText(newText: string) {
         this.content = newText;
-        this.textWidth = this.calculateTextWidth();
+        // this.textWidth = this.calculateTextWidth();
     }
 
     updateTextStyle(newStyles: Partial<CSSStyleDeclaration>) {
@@ -77,6 +77,7 @@ export class MatrixElement {
     }
 
     renderTo(container: HTMLElement) {
+        this.calculateTextWidth()
         if (!this.visible) return;
         // Ищем существующий элемент в контейнере по id
         let div = container.querySelector(`#${this.id}`) as HTMLElement;
