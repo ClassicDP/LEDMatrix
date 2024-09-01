@@ -634,9 +634,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     if (!ws) {
-        ws = new WebSocket('ws://localhost:8081');
+        const urlParams = new URLSearchParams(window.location.search);
+        const wsPort = urlParams.get('wsPort') || '8081';
+        ws = new WebSocket(`ws://localhost:${wsPort}`);
         ws.onopen = () => {
-            console.log('WebSocket connection opened');
+            console.log('WebSocket connection opened:', wsPort);
         };
         ws.onmessage = (event) => {
             try {

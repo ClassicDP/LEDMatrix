@@ -28,13 +28,13 @@ class Handlers {
         this.tracker = new PointTracker_1.PointTracker();
         this.resolveFunc = null;
     }
-    initializePage() {
+    initializePage(port) {
         return __awaiter(this, void 0, void 0, function* () {
             this.tracker.point('initialization-start');
             try {
                 this.browser = yield playwright_1.webkit.launch();
                 this.context = yield this.browser.newContext();
-                yield this.createNewPage();
+                yield this.createNewPage(port);
                 this.tracker.point('initialization-end', ['initialization-start']);
             }
             catch (e) {
@@ -50,14 +50,15 @@ class Handlers {
             });
         });
     }
-    createNewPage() {
+    createNewPage(port) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 this.tracker.point('page-creation-start');
                 this.page = yield this.context.newPage();
                 const filePath = path_1.default.join(__dirname, '../../../src/render/dist/index.html');
+                const url = `file://${filePath}?wsPort=${port}`;
                 this.tracker.point('page-loading-start');
-                yield this.page.goto(`file://${filePath}`, { waitUntil: 'load' });
+                yield this.page.goto(url, { waitUntil: 'load' });
                 this.tracker.point('page-loading-end', ['page-loading-start']);
                 this.page.on('console', (msg) => __awaiter(this, void 0, void 0, function* () {
                     const msgArgs = msg.args();
@@ -71,7 +72,7 @@ class Handlers {
                 }));
                 console.log('New page loaded');
                 this.tracker.point('page-creation-end', ['page-creation-start']);
-                yield this.initializeWebSocketAndWaitForOpen();
+                yield this.initializeWebSocketAndWaitForOpen(port);
             }
             catch (error) {
                 console.error('Error creating or loading new page:', error);
@@ -79,11 +80,11 @@ class Handlers {
             }
         });
     }
-    initializeWebSocketAndWaitForOpen() {
+    initializeWebSocketAndWaitForOpen(port) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
                 try {
-                    const wss = new ws_2.Server({ port: 8081 });
+                    const wss = new ws_2.Server({ port: port });
                     this.wss = wss;
                     // Флаг, чтобы отследить, разрешён ли уже промис
                     let isResolved = false;
@@ -111,7 +112,7 @@ class Handlers {
                             resolve();
                         }
                     });
-                    console.log('WebSocket server is running on ws://localhost:8081');
+                    console.log(`WebSocket server is running on ws://localhost:${port}`);
                 }
                 catch (error) {
                     console.error('Failed to start WebSocket server:', error);
@@ -119,6 +120,10 @@ class Handlers {
                 }
             });
         });
+    }
+    closeWebSocketServer() {
+        var _a;
+        (_a = this.wss) === null || _a === void 0 ? void 0 : _a.close();
     }
     handleWebSocketMessage(event) {
         return __awaiter(this, void 0, void 0, function* () {

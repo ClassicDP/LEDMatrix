@@ -33,13 +33,13 @@ export class Handlers {
     private resolveFunc: ((value: string) => void) | null = null;
     private ws: WebSocket | undefined;
 
-    async initializePage(): Promise<void> {
+    async initializePage(port: number): Promise<void> {
         this.tracker.point('initialization-start');
 
         try {
             this.browser = await webkit.launch();
             this.context = await this.browser.newContext();
-            await this.createNewPage();
+            await this.createNewPage(port);
             this.tracker.point('initialization-end', ['initialization-start']);
         } catch (e) {
             console.log(e);
@@ -53,14 +53,15 @@ export class Handlers {
         })
     }
 
-    private async createNewPage(): Promise<void> {
+    private async createNewPage(port: number): Promise<void> {
         try {
             this.tracker.point('page-creation-start');
             this.page = await this.context!.newPage();
 
             const filePath = path.join(__dirname, '../../../src/render/dist/index.html');
+            const url = `file://${filePath}?wsPort=${port}`;
             this.tracker.point('page-loading-start');
-            await this.page.goto(`file://${filePath}`, {waitUntil: 'load'});
+            await this.page.goto(url, {waitUntil: 'load'});
             this.tracker.point('page-loading-end', ['page-loading-start']);
 
             this.page.on('console', async (msg) => {
@@ -75,17 +76,17 @@ export class Handlers {
 
             console.log('New page loaded');
             this.tracker.point('page-creation-end', ['page-creation-start']);
-            await this.initializeWebSocketAndWaitForOpen();
+            await this.initializeWebSocketAndWaitForOpen(port);
         } catch (error) {
             console.error('Error creating or loading new page:', error);
             this.tracker.point('page-creation-error');
         }
     }
 
-    private async initializeWebSocketAndWaitForOpen(): Promise<void> {
+    private async initializeWebSocketAndWaitForOpen(port: number): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                const wss = new Server({port: 8081});
+                const wss = new Server({port: port});
                 this.wss = wss;
 
                 // Флаг, чтобы отследить, разрешён ли уже промис
@@ -121,7 +122,7 @@ export class Handlers {
                     }
                 });
 
-                console.log('WebSocket server is running on ws://localhost:8081');
+                console.log(`WebSocket server is running on ws://localhost:${port}`);
 
             } catch (error) {
                 console.error('Failed to start WebSocket server:', error);
@@ -129,6 +130,11 @@ export class Handlers {
             }
         });
     }
+
+    closeWebSocketServer  () {
+        this.wss?.close()
+    }
+
     private async handleWebSocketMessage(event: WebSocket.MessageEvent): Promise<void> {
         const message: WebSocketCommand = JSON.parse(event.data.toString());
         if ((message.command === 'loadSnapshot' || message.command === 'setStartTime') && this.resolveFunc) {
