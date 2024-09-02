@@ -65,12 +65,13 @@ class WorkerManager {
             yield this.manager.call(workerId, "initializePage", port);
             console.log(`Worker with ID ${workerId} created on port ${port}.`);
             this.oldWorkerId = this.currentWorkerId;
-            this.currentWorkerId = workerId;
             return workerId;
         });
     }
-    swapWorkers() {
+    swapWorkers(lockMutex) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (lockMutex)
+                lockMutex.unlock();
             if (this.currentWorkerId === undefined)
                 return;
             if (this.oldWorkerId !== undefined) {
@@ -142,14 +143,17 @@ class WorkerManager {
     }
     startNewWorkerAndSwap() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.createWorker();
-            yield this.swapWorkers(); // Swap after new worker is fully ready
+            let workerId = yield this.createWorker();
+            yield new Promise(resolve1 => setTimeout(resolve1, 10000));
+            yield mutex.lock();
+            this.currentWorkerId = workerId;
+            yield this.swapWorkers(mutex); // Swap after new worker is fully ready
         });
     }
 }
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const manager = new WorkerManager();
-    yield manager.createWorker();
+    manager.currentWorkerId = yield manager.createWorker();
     manager.startRenderingProcess();
     while (1) {
         yield manager.startNewWorkerAndSwap();
