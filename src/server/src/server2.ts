@@ -1,106 +1,108 @@
-import { WorkerManager as BaseWorkerManager } from "worker-threads-manager/dist/src";
-import { Handlers } from "./worker";
-import { resolve } from "path";
-import WebSocket, { Server } from "ws";
-import { PointTracker } from "@server/PointTracker";
-import { Matrix } from "../../Matrix/src/Matrix";
-import { SerDe } from "serde-ts";
-import { MatrixElement, TimeMatrixElement } from "../../Matrix/src/MatrixElement";
+import {WorkerManager as BaseWorkerManager} from "worker-threads-manager/dist/src";
+import {Handlers} from "./worker";
+import {resolve} from "path";
+import WebSocket, {Server} from "ws";
+import {PointTracker} from "@server/PointTracker";
+import {Matrix} from "../../Matrix/src/Matrix";
+import {SerDe} from "serde-ts";
+import {MatrixElement, TimeMatrixElement} from "../../Matrix/src/MatrixElement";
 import {
     RainbowEffectModifier,
     RotationModifier,
     ScaleModifier,
     ScrollingTextModifier
 } from "../../Matrix/src/Modifiers";
-import { Mutex } from "@server/mutex";
+import {Mutex} from "@server/mutex";
+import * as process from "node:process";
 
+let i = 0;
 let clientCounter = 0;
 let clients: WebSocket[] = [];
 let tracker = new PointTracker();
 let mutex = new Mutex();
 
 class WorkerManager {
-    private workers: { [key: number]: number } = {};
     private manager: BaseWorkerManager<Handlers>;
-    currentWorkerId: number | null = null;
+    currentWorkerId: number | undefined = undefined;
     private ports = [8085, 8086];
     private currentPortIndex = 0;
+    private interval: NodeJS.Timeout | undefined = undefined;
+    private timeout: NodeJS.Timeout | undefined = undefined;
+    private oldWorkerId: undefined | number = undefined;
 
     constructor() {
         this.manager = new BaseWorkerManager<Handlers>();
     }
 
     async createWorker(): Promise<number> {
-        const port = this.ports[this.currentPortIndex];
         this.currentPortIndex = 1 - this.currentPortIndex;  // Alternate between 8085 and 8086
+        const port = this.ports[this.currentPortIndex];
 
         const workerId = await this.manager.createWorkerWithHandlers(resolve(__dirname, 'worker.js'));
-        this.workers[workerId] = workerId;
         await this.manager.call(workerId, "initializePage", port);
         console.log(`Worker with ID ${workerId} created on port ${port}.`);
-
+        this.oldWorkerId = this.currentWorkerId
+        this.currentWorkerId = workerId
         return workerId;
     }
 
-    async swapWorkers(newWorkerId: number): Promise<void> {
-        const oldWorkerId = this.currentWorkerId;
+    async swapWorkers(): Promise<void> {
+        if (this.currentWorkerId === undefined) return
 
-        if (oldWorkerId !== null) {
+        if (this.oldWorkerId !== undefined) {
             await mutex.lock();
             try {
-                console.log(`Swapping from worker ID ${oldWorkerId} to ${newWorkerId}`);
+                console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
 
                 // Transfer state from old worker to new worker
-                const snapshot: string = await this.manager.call(oldWorkerId, 'getSnapshot');
-                await this.manager.call(newWorkerId, 'setSnapshot', snapshot);
+                const snapshot: string = await this.manager.call(this.oldWorkerId, 'getSnapshot');
+                await this.manager.call(this.currentWorkerId, 'setSnapshot', snapshot);
 
                 // Cancel all tasks related to the old worker and close WebSocket server
-                await this.manager.call(oldWorkerId, 'closeWebSocketServer');
-                await this.manager.terminateWorker(oldWorkerId);
-                delete this.workers[oldWorkerId];
+                await this.manager.call(this.oldWorkerId, 'closeWebSocketServer');
+                await this.manager.terminateWorker(this.oldWorkerId);
             } finally {
                 mutex.unlock();
             }
         }
 
-        this.currentWorkerId = newWorkerId;
-        this.startRenderingProcess(newWorkerId);
-        console.log(`Worker ID ${newWorkerId} is now the active worker.`);
+        this.startRenderingProcess();
+        console.log(`Worker ID ${this.currentWorkerId} is now the active worker.`);
     }
 
-    async startRenderingProcess(workerId: number) {
-        let i = 0;
+    async updateMatrix() {
+        if (this.currentWorkerId === undefined) return;
+        await mutex.lock();
+        try {
+            let matrix: Matrix = SerDe.deserialize(await this.manager.call(this.currentWorkerId, 'getSnapshot'));
+            matrix.elements[1].setText((i++).toString());
+            await this.manager.call(this.currentWorkerId, 'setSnapshot', SerDe.serialise(matrix));
+        } finally {
+            mutex.unlock();
+        }
+    };
 
-        const updateMatrix = async () => {
-            await mutex.lock();
-            try {
-                if (this.workers[workerId] === workerId) { // Ensure worker is still valid
-                    let matrix: Matrix = SerDe.deserialize(await this.manager.call(workerId, 'getSnapshot'));
-                    matrix.elements[1].setText((i++).toString());
-                    await this.manager.call(workerId, 'setSnapshot', SerDe.serialise(matrix));
-                } else {
-                    console.error(`Worker with ID ${workerId} is no longer valid during updateMatrix.`);
-                }
-            } finally {
-                mutex.unlock();
-            }
-        };
+    async startRenderingProcess(): Promise<void> {
+
+        if (!this.interval)
+            this.interval = setInterval(this.updateMatrix.bind(this), 1000)
 
         const processFrameGroup = async () => {
             await mutex.lock();
             try {
-                if (this.workers[workerId] === workerId) { // Ensure worker is still valid
-                    console.log(`Calling worker with ID: ${workerId}, method: generateNextFrameGroup`);
-                    let frameGroup = await this.manager.call(workerId, 'generateNextFrameGroup');
+                if (this.currentWorkerId !== undefined) { // Ensure worker is still valid
+                    console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
+                    let frameGroup = await this.manager.call(this.currentWorkerId, 'generateNextFrameGroup');
                     if (frameGroup) {
                         for (let client of clients) {
                             client.send(JSON.stringify(frameGroup));
                         }
                     }
                     let nextTimeout = frameGroup!.startTime - Date.now() - 300;
-                    setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
+                    if (this.timeout) clearTimeout(this.timeout)
+                    this.timeout = setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
                 } else {
-                    console.error(`Worker with ID ${workerId} is no longer valid during processFrameGroup.`);
+                    console.error(`Worker with ID ${this.currentWorkerId} is no longer valid during processFrameGroup.`);
                 }
             } finally {
                 mutex.unlock();
@@ -108,30 +110,28 @@ class WorkerManager {
         };
 
         // Start frame processing and matrix updates immediately
-        processFrameGroup();
-        setInterval(updateMatrix, 1000);
+        await processFrameGroup();
     }
 
     async startNewWorkerAndSwap() {
-        const newWorkerId = await this.createWorker();
-        await this.swapWorkers(newWorkerId);
+        await this.createWorker();
+        await this.swapWorkers();  // Swap after new worker is fully ready
     }
 }
 
 (async () => {
-    const workerManager = new WorkerManager();
+        const manager = new WorkerManager();
+        await manager.createWorker();
+        manager.startRenderingProcess()
+        while (1) {
+            await manager.startNewWorkerAndSwap()
+        }
+    }
+)();
 
-    // Create and start the first worker
-    const w1Id = await workerManager.createWorker();
-    workerManager.currentWorkerId = w1Id;
-    await workerManager.startRenderingProcess(w1Id);
-
-    // Immediately start the process to swap to a new worker
-    workerManager.startNewWorkerAndSwap();
-})();
 
 (async () => {
-    const wss = new Server({ port: 8083 });  // Only one instance of the WebSocket server
+    const wss = new Server({port: 8083});  // Only one instance of the WebSocket server
     wss.on('connection', (ws: WebSocket) => {
         const clientId = ++clientCounter;
         clients.push(ws);
@@ -155,3 +155,21 @@ class WorkerManager {
         Matrix, MatrixElement, TimeMatrixElement, ScrollingTextModifier, ScaleModifier, RainbowEffectModifier
     ]);
 })();
+
+setInterval(() => {
+    const formatMemoryUsage = (data: any) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
+
+    const memoryData = process.memoryUsage();
+
+    const memoryUsage = {
+        rss: `${formatMemoryUsage(memoryData.rss)} -> Resident Set Size - total memory allocated for the process execution`,
+        heapTotal: `${formatMemoryUsage(memoryData.heapTotal)} -> total size of the allocated heap`,
+        heapUsed: `${formatMemoryUsage(memoryData.heapUsed)} -> actual memory used during the execution`,
+        external: `${formatMemoryUsage(memoryData.external)} -> V8 external memory`,
+    };
+
+    console.log(memoryUsage);
+}, 10000)
+
+
+

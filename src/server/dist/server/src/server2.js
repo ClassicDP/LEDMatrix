@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -18,88 +41,95 @@ const serde_ts_1 = require("serde-ts");
 const MatrixElement_1 = require("../../Matrix/src/MatrixElement");
 const Modifiers_1 = require("../../Matrix/src/Modifiers");
 const mutex_1 = require("@server/mutex");
+const process = __importStar(require("node:process"));
+let i = 0;
 let clientCounter = 0;
 let clients = [];
 let tracker = new PointTracker_1.PointTracker();
 let mutex = new mutex_1.Mutex();
 class WorkerManager {
     constructor() {
-        this.workers = {};
-        this.currentWorkerId = null;
+        this.currentWorkerId = undefined;
         this.ports = [8085, 8086];
         this.currentPortIndex = 0;
+        this.interval = undefined;
+        this.timeout = undefined;
+        this.oldWorkerId = undefined;
         this.manager = new src_1.WorkerManager();
     }
     createWorker() {
         return __awaiter(this, void 0, void 0, function* () {
-            const port = this.ports[this.currentPortIndex];
             this.currentPortIndex = 1 - this.currentPortIndex; // Alternate between 8085 and 8086
+            const port = this.ports[this.currentPortIndex];
             const workerId = yield this.manager.createWorkerWithHandlers((0, path_1.resolve)(__dirname, 'worker.js'));
-            this.workers[workerId] = workerId;
             yield this.manager.call(workerId, "initializePage", port);
             console.log(`Worker with ID ${workerId} created on port ${port}.`);
+            this.oldWorkerId = this.currentWorkerId;
+            this.currentWorkerId = workerId;
             return workerId;
         });
     }
-    swapWorkers(newWorkerId) {
+    swapWorkers() {
         return __awaiter(this, void 0, void 0, function* () {
-            const oldWorkerId = this.currentWorkerId;
-            if (oldWorkerId !== null) {
+            if (this.currentWorkerId === undefined)
+                return;
+            if (this.oldWorkerId !== undefined) {
                 yield mutex.lock();
                 try {
-                    console.log(`Swapping from worker ID ${oldWorkerId} to ${newWorkerId}`);
+                    console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
                     // Transfer state from old worker to new worker
-                    const snapshot = yield this.manager.call(oldWorkerId, 'getSnapshot');
-                    yield this.manager.call(newWorkerId, 'setSnapshot', snapshot);
+                    const snapshot = yield this.manager.call(this.oldWorkerId, 'getSnapshot');
+                    yield this.manager.call(this.currentWorkerId, 'setSnapshot', snapshot);
                     // Cancel all tasks related to the old worker and close WebSocket server
-                    yield this.manager.call(oldWorkerId, 'closeWebSocketServer');
-                    yield this.manager.terminateWorker(oldWorkerId);
-                    delete this.workers[oldWorkerId];
+                    yield this.manager.call(this.oldWorkerId, 'closeWebSocketServer');
+                    yield this.manager.terminateWorker(this.oldWorkerId);
                 }
                 finally {
                     mutex.unlock();
                 }
             }
-            this.currentWorkerId = newWorkerId;
-            this.startRenderingProcess(newWorkerId);
-            console.log(`Worker ID ${newWorkerId} is now the active worker.`);
+            this.startRenderingProcess();
+            console.log(`Worker ID ${this.currentWorkerId} is now the active worker.`);
         });
     }
-    startRenderingProcess(workerId) {
+    updateMatrix() {
         return __awaiter(this, void 0, void 0, function* () {
-            let i = 0;
-            const updateMatrix = () => __awaiter(this, void 0, void 0, function* () {
-                yield mutex.lock();
-                try {
-                    if (this.workers[workerId] === workerId) { // Ensure worker is still valid
-                        let matrix = serde_ts_1.SerDe.deserialize(yield this.manager.call(workerId, 'getSnapshot'));
-                        matrix.elements[1].setText((i++).toString());
-                        yield this.manager.call(workerId, 'setSnapshot', serde_ts_1.SerDe.serialise(matrix));
-                    }
-                    else {
-                        console.error(`Worker with ID ${workerId} is no longer valid during updateMatrix.`);
-                    }
-                }
-                finally {
-                    mutex.unlock();
-                }
-            });
+            if (this.currentWorkerId === undefined)
+                return;
+            yield mutex.lock();
+            try {
+                let matrix = serde_ts_1.SerDe.deserialize(yield this.manager.call(this.currentWorkerId, 'getSnapshot'));
+                matrix.elements[1].setText((i++).toString());
+                yield this.manager.call(this.currentWorkerId, 'setSnapshot', serde_ts_1.SerDe.serialise(matrix));
+            }
+            finally {
+                mutex.unlock();
+            }
+        });
+    }
+    ;
+    startRenderingProcess() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.interval)
+                this.interval = setInterval(this.updateMatrix.bind(this), 1000);
             const processFrameGroup = () => __awaiter(this, void 0, void 0, function* () {
                 yield mutex.lock();
                 try {
-                    if (this.workers[workerId] === workerId) { // Ensure worker is still valid
-                        console.log(`Calling worker with ID: ${workerId}, method: generateNextFrameGroup`);
-                        let frameGroup = yield this.manager.call(workerId, 'generateNextFrameGroup');
+                    if (this.currentWorkerId !== undefined) { // Ensure worker is still valid
+                        console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
+                        let frameGroup = yield this.manager.call(this.currentWorkerId, 'generateNextFrameGroup');
                         if (frameGroup) {
                             for (let client of clients) {
                                 client.send(JSON.stringify(frameGroup));
                             }
                         }
                         let nextTimeout = frameGroup.startTime - Date.now() - 300;
-                        setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
+                        if (this.timeout)
+                            clearTimeout(this.timeout);
+                        this.timeout = setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
                     }
                     else {
-                        console.error(`Worker with ID ${workerId} is no longer valid during processFrameGroup.`);
+                        console.error(`Worker with ID ${this.currentWorkerId} is no longer valid during processFrameGroup.`);
                     }
                 }
                 finally {
@@ -107,25 +137,23 @@ class WorkerManager {
                 }
             });
             // Start frame processing and matrix updates immediately
-            processFrameGroup();
-            setInterval(updateMatrix, 1000);
+            yield processFrameGroup();
         });
     }
     startNewWorkerAndSwap() {
         return __awaiter(this, void 0, void 0, function* () {
-            const newWorkerId = yield this.createWorker();
-            yield this.swapWorkers(newWorkerId);
+            yield this.createWorker();
+            yield this.swapWorkers(); // Swap after new worker is fully ready
         });
     }
 }
 (() => __awaiter(void 0, void 0, void 0, function* () {
-    const workerManager = new WorkerManager();
-    // Create and start the first worker
-    const w1Id = yield workerManager.createWorker();
-    workerManager.currentWorkerId = w1Id;
-    yield workerManager.startRenderingProcess(w1Id);
-    // Immediately start the process to swap to a new worker
-    workerManager.startNewWorkerAndSwap();
+    const manager = new WorkerManager();
+    yield manager.createWorker();
+    manager.startRenderingProcess();
+    while (1) {
+        yield manager.startNewWorkerAndSwap();
+    }
 }))();
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const wss = new ws_1.Server({ port: 8083 }); // Only one instance of the WebSocket server
@@ -149,4 +177,15 @@ class WorkerManager {
         Matrix_1.Matrix, MatrixElement_1.MatrixElement, MatrixElement_1.TimeMatrixElement, Modifiers_1.ScrollingTextModifier, Modifiers_1.ScaleModifier, Modifiers_1.RainbowEffectModifier
     ]);
 }))();
+setInterval(() => {
+    const formatMemoryUsage = (data) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
+    const memoryData = process.memoryUsage();
+    const memoryUsage = {
+        rss: `${formatMemoryUsage(memoryData.rss)} -> Resident Set Size - total memory allocated for the process execution`,
+        heapTotal: `${formatMemoryUsage(memoryData.heapTotal)} -> total size of the allocated heap`,
+        heapUsed: `${formatMemoryUsage(memoryData.heapUsed)} -> actual memory used during the execution`,
+        external: `${formatMemoryUsage(memoryData.external)} -> V8 external memory`,
+    };
+    console.log(memoryUsage);
+}, 10000);
 //# sourceMappingURL=server2.js.map
