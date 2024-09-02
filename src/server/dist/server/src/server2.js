@@ -181,8 +181,9 @@ class WorkerManager {
         Matrix_1.Matrix, MatrixElement_1.MatrixElement, MatrixElement_1.TimeMatrixElement, Modifiers_1.ScrollingTextModifier, Modifiers_1.ScaleModifier, Modifiers_1.RainbowEffectModifier
     ]);
 }))();
-setInterval(() => {
+setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     const formatMemoryUsage = (data) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
+    yield mutex.lock();
     const memoryData = process.memoryUsage();
     const memoryUsage = {
         rss: `${formatMemoryUsage(memoryData.rss)} -> Resident Set Size - total memory allocated for the process execution`,
@@ -191,5 +192,6 @@ setInterval(() => {
         external: `${formatMemoryUsage(memoryData.external)} -> V8 external memory`,
     };
     console.log(memoryUsage);
-}, 10000);
+    mutex.unlock();
+}), 10000);
 //# sourceMappingURL=server2.js.map

@@ -159,9 +159,9 @@ class WorkerManager {
     ]);
 })();
 
-setInterval(() => {
+setInterval(async () => {
     const formatMemoryUsage = (data: any) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
-
+    await mutex.lock()
     const memoryData = process.memoryUsage();
 
     const memoryUsage = {
@@ -172,6 +172,7 @@ setInterval(() => {
     };
 
     console.log(memoryUsage);
+    mutex.unlock()
 }, 10000)
 
 
