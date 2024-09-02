@@ -63,7 +63,7 @@ class WorkerManager {
             const port = this.ports[this.currentPortIndex];
             const workerId = yield this.manager.createWorkerWithHandlers((0, path_1.resolve)(__dirname, 'worker.js'));
             yield this.manager.call(workerId, "initializePage", port);
-            console.log(`Worker with ID ${workerId} created on port ${port}.`);
+            // console.log(`Worker with ID ${workerId} created on port ${port}.`);
             this.oldWorkerId = this.currentWorkerId;
             return workerId;
         });
@@ -77,7 +77,7 @@ class WorkerManager {
             if (this.oldWorkerId !== undefined) {
                 yield mutex.lock();
                 try {
-                    console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
+                    // console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
                     // Transfer state from old worker to new worker
                     const snapshot = yield this.manager.call(this.oldWorkerId, 'getSnapshot');
                     yield this.manager.call(this.currentWorkerId, 'setSnapshot', snapshot);
@@ -117,7 +117,7 @@ class WorkerManager {
                 yield mutex.lock();
                 try {
                     if (this.currentWorkerId !== undefined) { // Ensure worker is still valid
-                        console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
+                        // console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
                         let frameGroup = yield this.manager.call(this.currentWorkerId, 'generateNextFrameGroup');
                         if (frameGroup) {
                             for (let client of clients) {
@@ -193,5 +193,5 @@ setInterval(() => __awaiter(void 0, void 0, void 0, function* () {
     };
     console.log(memoryUsage);
     mutex.unlock();
-}), 10000);
+}), 60000);
 //# sourceMappingURL=server2.js.map

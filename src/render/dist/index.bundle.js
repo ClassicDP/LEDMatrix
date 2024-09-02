@@ -619,12 +619,12 @@ serde_ts__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([
 let ws = null;
 let matrix;
 function getSnapshot() {
-    console.log('get snapshot', matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime);
+    // console.log('get snapshot', matrix?.lastEndTime);
     return serde_ts__WEBPACK_IMPORTED_MODULE_3__.SerDe.serialise(matrix);
 }
 function fromSnapshot(snapshot) {
     matrix = serde_ts__WEBPACK_IMPORTED_MODULE_3__.SerDe.deserialize(snapshot);
-    console.log('fromSnapshot', new Date(matrix === null || matrix === void 0 ? void 0 : matrix.lastEndTime).toString());
+    // console.log('fromSnapshot', new Date(matrix?.lastEndTime).toString());
 }
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded and parsed');
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const wsPort = urlParams.get('wsPort') || '8081';
         ws = new WebSocket(`ws://localhost:${wsPort}`);
         ws.onopen = () => {
-            console.log('WebSocket connection opened:', wsPort);
+            // console.log('WebSocket connection opened:', wsPort);
         };
         ws.onmessage = (event) => {
             try {
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'generateNextGroup':
                         if (matrix) {
                             const frameGroup = matrix.generateNextGroup(container, matrix.elements);
-                            console.log("generation done sending frameGroup");
+                            // console.log("generation done sending frameGroup");
                             ws.send(JSON.stringify({ frameGroup }));
                         }
                         break;

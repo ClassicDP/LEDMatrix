@@ -164,7 +164,7 @@ async function createNewPage() {
             }
         });
 
-        console.log('New page loaded');
+        // console.log('New page loaded');
         tracker.point('page-creation-end', ['page-creation-start']);
     } catch (error) {
         console.error('Error creating or loading new page:', error);

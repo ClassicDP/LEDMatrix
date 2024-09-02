@@ -88,15 +88,15 @@ export class Handlers {
         try {
             if (this.page) {
                 await this.page.close();  // Закрываем страницу
-                console.log('Page closed');
+                // console.log('Page closed');
             }
             if (this.context) {
                 await this.context.close();  // Закрываем контекст браузера
-                console.log('Browser context closed');
+                // console.log('Browser context closed');
             }
             if (this.browser) {
                 await this.browser.close()
-                console.log('Browser closed');
+                // console.log('Browser closed');
             }
         } catch (error) {
             console.error('Error during cleanup:', error);
@@ -147,7 +147,7 @@ export class Handlers {
                     }
                 });
 
-                console.log(`WebSocket server is running on ws://localhost:${port}`);
+                // console.log(`WebSocket server is running on ws://localhost:${port}`);
 
             } catch (error) {
                 console.error('Failed to start WebSocket server:', error);

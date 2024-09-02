@@ -40,7 +40,7 @@ class WorkerManager {
 
         const workerId = await this.manager.createWorkerWithHandlers(resolve(__dirname, 'worker.js'));
         await this.manager.call(workerId, "initializePage", port);
-        console.log(`Worker with ID ${workerId} created on port ${port}.`);
+        // console.log(`Worker with ID ${workerId} created on port ${port}.`);
         this.oldWorkerId = this.currentWorkerId
         return workerId;
     }
@@ -52,7 +52,7 @@ class WorkerManager {
         if (this.oldWorkerId !== undefined) {
             await mutex.lock();
             try {
-                console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
+                // console.log(`Swapping from worker ID ${this.oldWorkerId} to ${this.currentWorkerId}`);
 
                 // Transfer state from old worker to new worker
                 const snapshot: string = await this.manager.call(this.oldWorkerId, 'getSnapshot');
@@ -91,7 +91,7 @@ class WorkerManager {
             await mutex.lock();
             try {
                 if (this.currentWorkerId !== undefined) { // Ensure worker is still valid
-                    console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
+                    // console.log(`Calling worker with ID: ${this.currentWorkerId}, method: generateNextFrameGroup`);
                     let frameGroup = await this.manager.call(this.currentWorkerId, 'generateNextFrameGroup');
                     if (frameGroup) {
                         for (let client of clients) {
@@ -173,7 +173,7 @@ setInterval(async () => {
 
     console.log(memoryUsage);
     mutex.unlock()
-}, 10000)
+}, 60000)
 
 
 

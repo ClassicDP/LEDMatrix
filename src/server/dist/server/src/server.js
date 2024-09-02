@@ -171,7 +171,7 @@ function createNewPage() {
                 catch (e) {
                 }
             }));
-            console.log('New page loaded');
+            // console.log('New page loaded');
             tracker.point('page-creation-end', ['page-creation-start']);
         }
         catch (error) {
