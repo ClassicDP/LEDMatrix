@@ -77,7 +77,35 @@ class Handlers {
             catch (error) {
                 console.error('Error creating or loading new page:', error);
                 this.tracker.point('page-creation-error');
+                yield this.cleanup(); // Закрываем ресурсы в случае ошибки
             }
+        });
+    }
+    cleanup() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (this.page) {
+                    yield this.page.close(); // Закрываем страницу
+                    console.log('Page closed');
+                }
+                if (this.context) {
+                    yield this.context.close(); // Закрываем контекст браузера
+                    console.log('Browser context closed');
+                }
+                if (this.browser) {
+                    yield this.browser.close();
+                    console.log('Browser closed');
+                }
+            }
+            catch (error) {
+                console.error('Error during cleanup:', error);
+            }
+        });
+    }
+    shutdown() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.cleanup();
+            console.log('Browser shutdown complete');
         });
     }
     initializeWebSocketAndWaitForOpen(port) {
@@ -121,9 +149,12 @@ class Handlers {
             });
         });
     }
-    closeWebSocketServer() {
-        var _a;
-        (_a = this.wss) === null || _a === void 0 ? void 0 : _a.close();
+    closeWebSocketServerAndPage() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            (_a = this.wss) === null || _a === void 0 ? void 0 : _a.close();
+            yield this.cleanup();
+        });
     }
     handleWebSocketMessage(event) {
         return __awaiter(this, void 0, void 0, function* () {

@@ -80,7 +80,32 @@ export class Handlers {
         } catch (error) {
             console.error('Error creating or loading new page:', error);
             this.tracker.point('page-creation-error');
+            await this.cleanup();  // Закрываем ресурсы в случае ошибки
         }
+    }
+
+    private async cleanup(): Promise<void> {
+        try {
+            if (this.page) {
+                await this.page.close();  // Закрываем страницу
+                console.log('Page closed');
+            }
+            if (this.context) {
+                await this.context.close();  // Закрываем контекст браузера
+                console.log('Browser context closed');
+            }
+            if (this.browser) {
+                await this.browser.close()
+                console.log('Browser closed');
+            }
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+        }
+    }
+
+    public async shutdown(): Promise<void> {
+        await this.cleanup();
+        console.log('Browser shutdown complete');
     }
 
     private async initializeWebSocketAndWaitForOpen(port: number): Promise<void> {
@@ -131,8 +156,9 @@ export class Handlers {
         });
     }
 
-    closeWebSocketServer  () {
+    async closeWebSocketServerAndPage  () {
         this.wss?.close()
+        await this.cleanup()
     }
 
     private async handleWebSocketMessage(event: WebSocket.MessageEvent): Promise<void> {

@@ -59,7 +59,7 @@ class WorkerManager {
                 await this.manager.call(this.currentWorkerId, 'setSnapshot', snapshot);
 
                 // Cancel all tasks related to the old worker and close WebSocket server
-                await this.manager.call(this.oldWorkerId, 'closeWebSocketServer');
+                await this.manager.call(this.oldWorkerId, 'closeWebSocketServerAndPage');
                 await this.manager.terminateWorker(this.oldWorkerId);
             } finally {
                 mutex.unlock();
@@ -98,7 +98,7 @@ class WorkerManager {
                             client.send(JSON.stringify(frameGroup));
                         }
                     }
-                    let nextTimeout = frameGroup!.startTime - Date.now() - 300;
+                    let nextTimeout = frameGroup!.startTime - Date.now() - 500;
                     if (this.timeout) clearTimeout(this.timeout)
                     this.timeout = setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
                 } else {

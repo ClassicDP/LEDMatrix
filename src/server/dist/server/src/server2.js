@@ -82,7 +82,7 @@ class WorkerManager {
                     const snapshot = yield this.manager.call(this.oldWorkerId, 'getSnapshot');
                     yield this.manager.call(this.currentWorkerId, 'setSnapshot', snapshot);
                     // Cancel all tasks related to the old worker and close WebSocket server
-                    yield this.manager.call(this.oldWorkerId, 'closeWebSocketServer');
+                    yield this.manager.call(this.oldWorkerId, 'closeWebSocketServerAndPage');
                     yield this.manager.terminateWorker(this.oldWorkerId);
                 }
                 finally {
@@ -124,7 +124,7 @@ class WorkerManager {
                                 client.send(JSON.stringify(frameGroup));
                             }
                         }
-                        let nextTimeout = frameGroup.startTime - Date.now() - 300;
+                        let nextTimeout = frameGroup.startTime - Date.now() - 500;
                         if (this.timeout)
                             clearTimeout(this.timeout);
                         this.timeout = setTimeout(processFrameGroup, Math.max(nextTimeout, 0));
