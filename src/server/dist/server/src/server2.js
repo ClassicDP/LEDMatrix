@@ -178,7 +178,7 @@ class WorkerManager {
     });
     // Register classes for serialization/deserialization
     serde_ts_1.SerDe.classRegistration([
-        Matrix_1.Matrix, MatrixElement_1.MatrixElement, MatrixElement_1.TimeMatrixElement, Modifiers_1.ScrollingTextModifier, Modifiers_1.ScaleModifier, Modifiers_1.RainbowEffectModifier
+        Matrix_1.Matrix, MatrixElement_1.MatrixElement, MatrixElement_1.TimeMatrixElement, Modifiers_1.ScrollingTextModifier, Modifiers_1.ScaleModifier, Modifiers_1.RainbowEffectModifier, Modifiers_1.ShadowEffectModifier
     ]);
 }))();
 setInterval(() => __awaiter(void 0, void 0, void 0, function* () {

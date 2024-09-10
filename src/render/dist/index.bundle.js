@@ -249,7 +249,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _FrameGroup__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./FrameGroup */ "../Matrix/src/FrameGroup.ts");
 
 class Matrix {
-    constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
+    constructor(width, height, framesPerSecond, framesPerGroup, startTime, matrixStyles = {}) {
         this.elementIdCounter = 0;
         this.elements = [];
         this.width = width;
@@ -258,13 +258,13 @@ class Matrix {
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+        this.matrixStyles = matrixStyles; // Сохраняем переданные стили
     }
     generateElementId() {
         return `element-${this.elementIdCounter++}`;
     }
     setStartTime(newStartTime) {
         this.startTime = newStartTime;
-        console.log(this.startTime);
         this.lastEndTime = newStartTime;
     }
     generateNextGroup(container, matrixElements) {
@@ -275,6 +275,8 @@ class Matrix {
         const startTime = this.lastEndTime;
         const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
         this.lastEndTime = startTime + frameInterval * frameCount;
+        // Применяем стили к контейнеру матрицы
+        Object.assign(container.style, this.matrixStyles);
         for (let i = 0; i < frameCount; i++) {
             let frame;
             if (i < existingFrames.length) {
@@ -288,9 +290,12 @@ class Matrix {
                 frame.style.width = `${this.width}px`;
                 frame.style.height = `${this.height}px`;
                 frame.style.overflow = 'hidden';
+                Object.assign(frame.style, this.matrixStyles);
                 container.appendChild(frame);
             }
             frame.style.top = `${i * this.height}px`;
+            // Применяем стили к каждому фрейму
+            Object.assign(frame.style, this.matrixStyles);
             // Очищаем содержимое фрейма перед добавлением новых элементов
             frame.innerHTML = '';
             matrixElements.sort((a, b) => b.layer - a.layer);
@@ -345,32 +350,32 @@ class MatrixElement {
         this.x = x;
         this.y = y;
         this.width = width;
+        this.textWidth = width;
         this.height = height;
         this.modifiers = [];
         this.textStyle = {};
         this.additionalStyles = {}; // Инициализация нового поля
-        this.textWidth = this.calculateTextWidth();
     }
-    // Метод для вычисления ширины текста без добавления элемента в DOM
-    calculateTextWidth() {
+    calculateTextWidth1() {
         const tempDiv = document.createElement('div');
+        // Применяем стили через Object.assign
+        Object.assign(tempDiv.style, this.textStyle, this.additionalStyles);
         tempDiv.style.position = 'absolute';
         tempDiv.style.visibility = 'hidden';
         tempDiv.style.whiteSpace = 'nowrap';
-        tempDiv.style.font = this.textStyle.font || '16px Arial';
-        tempDiv.innerText = this.content;
-        document.body.appendChild(tempDiv);
-        const width = tempDiv.clientWidth;
-        document.body.removeChild(tempDiv);
-        return width;
+        tempDiv.style.overflow = 'visible';
+        tempDiv.innerText = this.content; // Добавляем текст для которого нужно вычислить ширину
+        document.body.appendChild(tempDiv); // Добавляем элемент в DOM для вычисления его ширины
+        const width = tempDiv.scrollWidth; // Получаем реальную ширину текста
+        document.body.removeChild(tempDiv); // Удаляем временный элемент
+        console.log(width);
+        return width; // Возвращаем ширину текста
     }
     setText(newText) {
         this.content = newText;
-        // this.textWidth = this.calculateTextWidth();
     }
     updateTextStyle(newStyles) {
         Object.assign(this.textStyle, newStyles);
-        this.textWidth = this.calculateTextWidth();
     }
     updateAdditionalStyles(newStyles) {
         Object.assign(this.additionalStyles, newStyles);
@@ -391,7 +396,6 @@ class MatrixElement {
         this.modifiers.push(modifier);
     }
     renderTo(container) {
-        this.calculateTextWidth();
         if (!this.visible)
             return;
         // Ищем существующий элемент в контейнере по id
@@ -406,9 +410,10 @@ class MatrixElement {
         div.style.position = 'absolute';
         div.style.left = `${Math.floor(this.x + 0.0001)}px`;
         div.style.top = `${Math.floor(this.y + 0.0001)}px`;
-        div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
-        div.style.overflow = 'hidden';
+        div.style.overflow = 'visible';
+        div.style.whiteSpace = 'nowrap';
+        // div.style.overflow = 'hidden';
         // Применяем основные стили и дополнительные стили
         Object.assign(div.style, this.textStyle, this.additionalStyles);
         if (typeof this.content === 'string') {
@@ -418,6 +423,9 @@ class MatrixElement {
             div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
+        console.log(div.scrollWidth, this.x);
+        div.style.width = `${div.scrollWidth}px`;
+        this.textWidth = div.scrollWidth;
     }
 }
 class TimeMatrixElement extends MatrixElement {
@@ -449,7 +457,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   RainbowEffectModifier: () => (/* binding */ RainbowEffectModifier),
 /* harmony export */   RotationModifier: () => (/* binding */ RotationModifier),
 /* harmony export */   ScaleModifier: () => (/* binding */ ScaleModifier),
-/* harmony export */   ScrollingTextModifier: () => (/* binding */ ScrollingTextModifier)
+/* harmony export */   ScrollingTextModifier: () => (/* binding */ ScrollingTextModifier),
+/* harmony export */   ShadowEffectModifier: () => (/* binding */ ShadowEffectModifier)
 /* harmony export */ });
 class DynamicModifier {
     constructor(element, framesPerSecond) {
@@ -517,6 +526,88 @@ class ScaleModifier extends DynamicModifier {
         this.element.updateAdditionalStyles({
             transform: `scale(${t})`
         });
+    }
+}
+class ShadowEffectModifier extends DynamicModifier {
+    constructor(element, blur = 0, shadowCount = 1) {
+        super(element);
+        this.blur = blur;
+        this.shadowCount = shadowCount;
+    }
+    apply(timestamp) {
+        const shadows = [];
+        // Получаем текущий цвет текста на момент анимации
+        const currentColor = this.getTextColor(this.element);
+        // Применяем прозрачность через rgba без лишних преобразований
+        const shadowColorWithOpacity = this.convertToRgba(currentColor, 0.3); // Добавляем прозрачность
+        // Создаём несколько теней с использованием текущего цвета
+        for (let i = 1; i <= this.shadowCount; i++) {
+            const xOffset = i; // Смещение по X
+            const yOffset = i; // Смещение по Y
+            shadows.push(`${xOffset}px ${yOffset}px ${this.blur}px ${shadowColorWithOpacity}`);
+        }
+        // Применяем тени к элементу
+        this.element.updateAdditionalStyles({
+            textShadow: shadows.join(', ')
+        });
+    }
+    // Функция для преобразования текущего цвета в формат rgba
+    convertToRgba(color, opacity) {
+        if (color.startsWith('rgb')) {
+            return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+        }
+        else if (color.startsWith('hsl')) {
+            return this.hslStringToRgba(color, opacity);
+        }
+        return color; // Если это не rgb или hsl, возвращаем как есть
+    }
+    // Преобразование HSL в RGBA
+    hslStringToRgba(hsl, opacity) {
+        const hslValues = hsl.match(/\d+/g).map(Number);
+        const h = hslValues[0];
+        const s = hslValues[1] / 100;
+        const l = hslValues[2] / 100;
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+        let r = 0, g = 0, b = 0;
+        if (0 <= h && h < 60) {
+            r = c;
+            g = x;
+            b = 0;
+        }
+        else if (60 <= h && h < 120) {
+            r = x;
+            g = c;
+            b = 0;
+        }
+        else if (120 <= h && h < 180) {
+            r = 0;
+            g = c;
+            b = x;
+        }
+        else if (180 <= h && h < 240) {
+            r = 0;
+            g = x;
+            b = c;
+        }
+        else if (240 <= h && h < 300) {
+            r = x;
+            g = 0;
+            b = c;
+        }
+        else if (300 <= h && h < 360) {
+            r = c;
+            g = 0;
+            b = x;
+        }
+        r = Math.round((r + m) * 255);
+        g = Math.round((g + m) * 255);
+        b = Math.round((b + m) * 255);
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+    getTextColor(element) {
+        return element.textStyle.color || '#ffffff'; // Если цвет не задан, используется белый
     }
 }
 
@@ -614,7 +705,8 @@ serde_ts__WEBPACK_IMPORTED_MODULE_3__.SerDe.classRegistration([
     _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier,
     _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RotationModifier,
     _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.BlinkModifier,
-    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier,
+    _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ShadowEffectModifier
 ]);
 let ws = null;
 let matrix;
@@ -685,10 +777,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 function initializeElements() {
-    matrix = new _Matrix_src_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now());
+    matrix = new _Matrix_src_Matrix__WEBPACK_IMPORTED_MODULE_0__.Matrix(128, 64, 60, 20, Date.now(), {
+        backgroundColor: 'black',
+        position: 'absolute'
+    });
     const textElement1 = new _Matrix_src_MatrixElement__WEBPACK_IMPORTED_MODULE_1__.MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
-        fontSize: '12px',
+        fontSize: '20px',
         color: 'lime',
         fontWeight: 'bold'
     });
@@ -705,14 +800,19 @@ function initializeElements() {
         fontSize: '12px',
         color: 'yellow',
         fontWeight: 'bold',
-        textAlign: 'center'
+        textAlign: 'center',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%'
     });
     matrix.addElement(timeElement);
     // new BlinkModifier(timeElement);
     new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScaleModifier(timeElement);
-    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 30);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement1, 20, 60);
     new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement1, 2000);
-    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 30);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ShadowEffectModifier(textElement1, 1, 1);
+    new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.ScrollingTextModifier(textElement2, 30, 60);
     new _Matrix_src_Modifiers__WEBPACK_IMPORTED_MODULE_2__.RainbowEffectModifier(textElement2, 2500);
 }
 

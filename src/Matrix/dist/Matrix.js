@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Matrix = void 0;
 const FrameGroup_1 = require("./FrameGroup");
 class Matrix {
-    constructor(width, height, framesPerSecond, framesPerGroup, startTime) {
+    constructor(width, height, framesPerSecond, framesPerGroup, startTime, matrixStyles = {}) {
         this.elementIdCounter = 0;
         this.elements = [];
         this.width = width;
@@ -12,13 +12,13 @@ class Matrix {
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+        this.matrixStyles = matrixStyles; // Сохраняем переданные стили
     }
     generateElementId() {
         return `element-${this.elementIdCounter++}`;
     }
     setStartTime(newStartTime) {
         this.startTime = newStartTime;
-        console.log(this.startTime);
         this.lastEndTime = newStartTime;
     }
     generateNextGroup(container, matrixElements) {
@@ -29,6 +29,8 @@ class Matrix {
         const startTime = this.lastEndTime;
         const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
         this.lastEndTime = startTime + frameInterval * frameCount;
+        // Применяем стили к контейнеру матрицы
+        Object.assign(container.style, this.matrixStyles);
         for (let i = 0; i < frameCount; i++) {
             let frame;
             if (i < existingFrames.length) {
@@ -42,9 +44,12 @@ class Matrix {
                 frame.style.width = `${this.width}px`;
                 frame.style.height = `${this.height}px`;
                 frame.style.overflow = 'hidden';
+                Object.assign(frame.style, this.matrixStyles);
                 container.appendChild(frame);
             }
             frame.style.top = `${i * this.height}px`;
+            // Применяем стили к каждому фрейму
+            Object.assign(frame.style, this.matrixStyles);
             // Очищаем содержимое фрейма перед добавлением новых элементов
             frame.innerHTML = '';
             matrixElements.sort((a, b) => b.layer - a.layer);

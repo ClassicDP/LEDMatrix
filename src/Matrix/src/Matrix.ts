@@ -10,15 +10,16 @@ export class Matrix {
     lastEndTime: number;
     private elementIdCounter: number = 0;
     public elements: MatrixElement[] = [];
+    private matrixStyles: Partial<CSSStyleDeclaration>; // Добавляем свойство для хранения стилей
 
-
-    constructor(width: number, height: number, framesPerSecond: number, framesPerGroup: number, startTime: number) {
+    constructor(width: number, height: number, framesPerSecond: number, framesPerGroup: number, startTime: number, matrixStyles: Partial<CSSStyleDeclaration> = {}) {
         this.width = width;
         this.height = height;
         this.framesPerSecond = framesPerSecond;
         this.framesPerGroup = framesPerGroup;
         this.startTime = startTime;
         this.lastEndTime = startTime;
+        this.matrixStyles = matrixStyles; // Сохраняем переданные стили
     }
 
     generateElementId(): string {
@@ -27,7 +28,6 @@ export class Matrix {
 
     setStartTime(newStartTime: number) {
         this.startTime = newStartTime;
-        console.log(this.startTime)
         this.lastEndTime = newStartTime;
     }
 
@@ -38,8 +38,11 @@ export class Matrix {
 
         // Начало новой группы
         const startTime = this.lastEndTime;
-        const framePositions = Array.from({length: frameCount}, (_, i) => startTime + i * frameInterval);
+        const framePositions = Array.from({ length: frameCount }, (_, i) => startTime + i * frameInterval);
         this.lastEndTime = startTime + frameInterval * frameCount;
+
+        // Применяем стили к контейнеру матрицы
+        Object.assign(container.style, this.matrixStyles);
 
         for (let i = 0; i < frameCount; i++) {
             let frame: HTMLElement;
@@ -54,15 +57,20 @@ export class Matrix {
                 frame.style.width = `${this.width}px`;
                 frame.style.height = `${this.height}px`;
                 frame.style.overflow = 'hidden';
+                Object.assign(frame.style, this.matrixStyles)
                 container.appendChild(frame);
             }
 
             frame.style.top = `${i * this.height}px`;
 
+            // Применяем стили к каждому фрейму
+            Object.assign(frame.style, this.matrixStyles);
+
             // Очищаем содержимое фрейма перед добавлением новых элементов
             frame.innerHTML = '';
 
-            matrixElements.sort((a, b) => b.layer - a.layer)
+            matrixElements.sort((a, b) => b.layer - a.layer);
+
             // Применяем модификаторы и рендерим каждый элемент матрицы
             for (const matrixElement of matrixElements) {
                 matrixElement.applyModifiers(framePositions[i]);
@@ -85,14 +93,13 @@ export class Matrix {
         if (!this.elements.includes(matrixElement)) {
             this.elements.push(matrixElement);
         }
-
     }
 
     removeElement(matrixElement: MatrixElement) {
-        this.elements = this.elements.filter(x => x !== matrixElement)
+        this.elements = this.elements.filter(x => x !== matrixElement);
     }
 
     clearElements() {
-        this.elements = []
+        this.elements = [];
     }
 }

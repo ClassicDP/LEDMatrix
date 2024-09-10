@@ -10,32 +10,32 @@ class MatrixElement {
         this.x = x;
         this.y = y;
         this.width = width;
+        this.textWidth = width;
         this.height = height;
         this.modifiers = [];
         this.textStyle = {};
         this.additionalStyles = {}; // Инициализация нового поля
-        this.textWidth = this.calculateTextWidth();
     }
-    // Метод для вычисления ширины текста без добавления элемента в DOM
-    calculateTextWidth() {
+    calculateTextWidth1() {
         const tempDiv = document.createElement('div');
+        // Применяем стили через Object.assign
+        Object.assign(tempDiv.style, this.textStyle, this.additionalStyles);
         tempDiv.style.position = 'absolute';
         tempDiv.style.visibility = 'hidden';
         tempDiv.style.whiteSpace = 'nowrap';
-        tempDiv.style.font = this.textStyle.font || '16px Arial';
-        tempDiv.innerText = this.content;
-        document.body.appendChild(tempDiv);
-        const width = tempDiv.clientWidth;
-        document.body.removeChild(tempDiv);
-        return width;
+        tempDiv.style.overflow = 'visible';
+        tempDiv.innerText = this.content; // Добавляем текст для которого нужно вычислить ширину
+        document.body.appendChild(tempDiv); // Добавляем элемент в DOM для вычисления его ширины
+        const width = tempDiv.scrollWidth; // Получаем реальную ширину текста
+        document.body.removeChild(tempDiv); // Удаляем временный элемент
+        console.log(width);
+        return width; // Возвращаем ширину текста
     }
     setText(newText) {
         this.content = newText;
-        // this.textWidth = this.calculateTextWidth();
     }
     updateTextStyle(newStyles) {
         Object.assign(this.textStyle, newStyles);
-        this.textWidth = this.calculateTextWidth();
     }
     updateAdditionalStyles(newStyles) {
         Object.assign(this.additionalStyles, newStyles);
@@ -56,7 +56,6 @@ class MatrixElement {
         this.modifiers.push(modifier);
     }
     renderTo(container) {
-        this.calculateTextWidth();
         if (!this.visible)
             return;
         // Ищем существующий элемент в контейнере по id
@@ -71,9 +70,10 @@ class MatrixElement {
         div.style.position = 'absolute';
         div.style.left = `${Math.floor(this.x + 0.0001)}px`;
         div.style.top = `${Math.floor(this.y + 0.0001)}px`;
-        div.style.width = `${this.width}px`;
         div.style.height = `${this.height}px`;
-        div.style.overflow = 'hidden';
+        div.style.overflow = 'visible';
+        div.style.whiteSpace = 'nowrap';
+        // div.style.overflow = 'hidden';
         // Применяем основные стили и дополнительные стили
         Object.assign(div.style, this.textStyle, this.additionalStyles);
         if (typeof this.content === 'string') {
@@ -83,6 +83,9 @@ class MatrixElement {
             div.innerHTML = ''; // Очистка перед добавлением
             div.appendChild(this.content);
         }
+        console.log(div.scrollWidth, this.x);
+        div.style.width = `${div.scrollWidth}px`;
+        this.textWidth = div.scrollWidth;
     }
 }
 exports.MatrixElement = MatrixElement;

@@ -10,7 +10,7 @@ import {
     RainbowEffectModifier,
     RotationModifier,
     ScaleModifier,
-    ScrollingTextModifier
+    ScrollingTextModifier, ShadowEffectModifier
 } from "../../Matrix/src/Modifiers";
 import {Mutex} from "@server/mutex";
 import * as process from "node:process";
@@ -155,7 +155,7 @@ class WorkerManager {
 
     // Register classes for serialization/deserialization
     SerDe.classRegistration([
-        Matrix, MatrixElement, TimeMatrixElement, ScrollingTextModifier, ScaleModifier, RainbowEffectModifier
+        Matrix, MatrixElement, TimeMatrixElement, ScrollingTextModifier, ScaleModifier, RainbowEffectModifier, ShadowEffectModifier
     ]);
 })();
 

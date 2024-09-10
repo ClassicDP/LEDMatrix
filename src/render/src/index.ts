@@ -5,7 +5,7 @@ import {
     RainbowEffectModifier,
     RotationModifier,
     ScaleModifier,
-    ScrollingTextModifier
+    ScrollingTextModifier, ShadowEffectModifier
 } from '../../Matrix/src/Modifiers';
 import {SerDe} from "serde-ts";
 
@@ -20,7 +20,8 @@ SerDe.classRegistration([
     ScrollingTextModifier,
     RotationModifier,
     BlinkModifier,
-    ScaleModifier
+    ScaleModifier,
+    ShadowEffectModifier
 ]);
 
 interface WebSocketCommand {
@@ -111,11 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeElements() {
-    matrix = new Matrix(128, 64, 60, 20, Date.now());
+    matrix = new Matrix(128, 64, 60, 20, Date.now(), {
+        backgroundColor: 'black',
+        position: 'absolute'
+
+    } );
 
     const textElement1 = new MatrixElement(matrix, "Running text 1", 0, 0, 128, 20);
     textElement1.updateTextStyle({
-        fontSize: '12px',
+        fontSize: '20px',
         color: 'lime',
         fontWeight: 'bold'
     });
@@ -134,15 +139,20 @@ function initializeElements() {
         fontSize: '12px',
         color: 'yellow',
         fontWeight: 'bold',
-        textAlign: 'center'
+        textAlign: 'center',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%'
     });
     matrix.addElement(timeElement);
 
     // new BlinkModifier(timeElement);
     new ScaleModifier(timeElement);
-    new ScrollingTextModifier(textElement1, 20, 30);
+    new ScrollingTextModifier(textElement1, 20, 60);
     new RainbowEffectModifier(textElement1, 2000);
-    new ScrollingTextModifier(textElement2, 30, 30);
+    new ShadowEffectModifier(textElement1,  1, 1);
+    new ScrollingTextModifier(textElement2, 30, 60);
     new RainbowEffectModifier(textElement2, 2500);
 
 
